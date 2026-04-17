@@ -2,9 +2,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCourses, createCourse, updateCourse, toggleCourseStatus } from '@/services/courseService';
-import { assignCourse, removeAssignment, getCourseAssignments } from '@/services/assignmentService';
-import { getAllStudents } from '@/services/userService';
-import { getGroups, getSubgroupsByGroup } from '@/services/groupService';
 import { supabase } from '@/supabase/client';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -14,27 +11,51 @@ import Input from '@/components/ui/Input';
 import toast from 'react-hot-toast';
 import { MdAdd, MdEdit, MdChevronRight, MdSchool, MdDelete } from 'react-icons/md';
 
+const PRESET_COLORS = [
+  '#7c6af7','#f75c6a','#f7a23c','#3cf7a2','#3ca2f7',
+  '#f73cf0','#f7e23c','#3cf7f0','#a2f73c','#f7603c',
+];
+
+function ColorPicker({ value, onChange }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Color del curso</label>
+      <div className="flex flex-wrap gap-2 mb-2">
+        {PRESET_COLORS.map(c => (
+          <button key={c} type="button" onClick={() => onChange(c)}
+            className="w-7 h-7 rounded-full transition-all"
+            style={{
+              background: c,
+              outline: value === c ? `3px solid white` : '3px solid transparent',
+              outlineOffset: '2px',
+            }} />
+        ))}
+      </div>
+      <div className="flex items-center gap-3">
+        <input type="color" value={value || '#7c6af7'} onChange={e => onChange(e.target.value)}
+          className="w-10 h-10 rounded-lg cursor-pointer border-0 p-0.5"
+          style={{ background: '#0f0f13' }} />
+        <input type="text" value={value || '#7c6af7'} onChange={e => onChange(e.target.value)}
+          className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
+          style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }}
+          placeholder="#7c6af7" />
+        <div className="w-10 h-10 rounded-xl" style={{ background: value || '#7c6af7' }} />
+      </div>
+    </div>
+  );
+}
+
 export default function AdminCourses() {
   const [courses, setCourses] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
-  const [showAssign, setShowAssign] = useState(false);
-  const [showMembers, setShowMembers] = useState(false);
   const [selected, setSelected] = useState(null);
-  const [form, setForm] = useState({ title: '', description: '' });
-  const [assignType, setAssignType] = useState('student');
-  const [assignTarget, setAssignTarget] = useState('');
-  const [allStudents, setAllStudents] = useState([]);
-  const [allGroups, setAllGroups] = useState([]);
-  const [allSubgroups, setAllSubgroups] = useState([]);
-  const [assignments, setAssignments] = useState([]);
+  const [form, setForm] = useState({ title: '', description: '', color: '#7c6af7' });
   const router = useRouter();
 
   async function load() {
-    const [c, s, g] = await Promise.all([getCourses(), getAllStudents(), getGroups()]);
+    const c = await getCourses();
     setCourses(c);
-    setAllStudents(s);
-    setAllGroups(g);
   }
 
   useEffect(() => { load(); }, []);
@@ -44,13 +65,17 @@ export default function AdminCourses() {
     await createCourse(form);
     toast.success('Curso creado');
     setShowCreate(false);
-    setForm({ title: '', description: '' });
+    setForm({ title: '', description: '', color: '#7c6af7' });
     load();
   }
 
   async function handleEdit(e) {
     e.preventDefault();
-    await updateCourse(selected.id, { title: selected.title, description: selected.description });
+    await updateCourse(selected.id, {
+      title: selected.title,
+      description: selected.description,
+      color: selected.color,
+    });
     toast.success('Curso actualizado');
     setShowEdit(false);
     load();
@@ -68,55 +93,6 @@ export default function AdminCourses() {
     if (error) { toast.error('Error al eliminar curso'); return; }
     toast.success('Curso eliminado');
     load();
-  }
-
-  async function openAssign(course) {
-    setSelected(course);
-    setAssignType('student');
-    setAssignTarget('');
-    setAllSubgroups([]);
-    setShowAssign(true);
-  }
-
-  async function openMembers(course) {
-    setSelected(course);
-    const data = await getCourseAssignments(course.id);
-    setAssignments(data);
-    setShowMembers(true);
-  }
-
-  async function handleAssignTypeChange(type) {
-    setAssignType(type);
-    setAssignTarget('');
-    if (type === 'subgroup') {
-      const subs = await Promise.all(allGroups.map(g => getSubgroupsByGroup(g.id)));
-      setAllSubgroups(subs.flat());
-    }
-  }
-
-  async function handleAssign(e) {
-    e.preventDefault();
-    if (!assignTarget) { toast.error('Selecciona un destino'); return; }
-    try {
-      await assignCourse({
-        courseId: selected.id,
-        userId: assignType === 'student' ? assignTarget : null,
-        groupId: assignType === 'group' ? assignTarget : null,
-        subgroupId: assignType === 'subgroup' ? assignTarget : null,
-      });
-      toast.success('Curso asignado');
-      setShowAssign(false);
-    } catch (err) {
-      toast.error('Error al asignar: ' + err.message);
-    }
-  }
-
-  async function handleRemoveAssignment(id) {
-    if (!confirm('¿Quitar esta asignación?')) return;
-    await removeAssignment(id);
-    toast.success('Asignación eliminada');
-    const data = await getCourseAssignments(selected.id);
-    setAssignments(data);
   }
 
   return (
@@ -139,8 +115,8 @@ export default function AdminCourses() {
           <Card key={course.id}>
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ background: '#7c6af720' }}>
-                <MdSchool style={{ color: '#7c6af7' }} />
+                style={{ background: (course.color || '#7c6af7') + '30' }}>
+                <MdSchool style={{ color: course.color || '#7c6af7' }} />
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
@@ -164,12 +140,6 @@ export default function AdminCourses() {
                   onClick={() => router.push(`/admin/courses/${course.id}/lessons`)}>
                   Lecciones <MdChevronRight />
                 </Button>
-                <Button size="sm" variant="secondary" onClick={() => openAssign(course)}>
-                  📋 Asignar
-                </Button>
-                <Button size="sm" variant="secondary" onClick={() => openMembers(course)}>
-                  👥 Alumnos
-                </Button>
                 <Button size="sm" variant="danger" onClick={() => handleDelete(course)}>
                   <MdDelete />
                 </Button>
@@ -191,6 +161,7 @@ export default function AdminCourses() {
               rows={3} className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
               style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
           </div>
+          <ColorPicker value={form.color} onChange={c => setForm(p => ({...p, color: c}))} />
           <div className="flex gap-3 pt-2">
             <Button type="submit" className="flex-1">Crear curso</Button>
             <Button type="button" variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
@@ -211,124 +182,13 @@ export default function AdminCourses() {
                 rows={3} className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
                 style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
             </div>
+            <ColorPicker value={selected.color || '#7c6af7'}
+              onChange={c => setSelected(p => ({...p, color: c}))} />
             <div className="flex gap-3 pt-2">
               <Button type="submit" className="flex-1">Guardar</Button>
               <Button type="button" variant="secondary" onClick={() => setShowEdit(false)}>Cancelar</Button>
             </div>
           </form>
-        </Modal>
-      )}
-
-      {/* Modal asignar */}
-      {selected && (
-        <Modal isOpen={showAssign} onClose={() => setShowAssign(false)}
-          title={`Asignar: ${selected.title}`}>
-          <form onSubmit={handleAssign} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Asignar a</label>
-              <div className="flex gap-2">
-                {[
-                  { value: 'student', label: '👤 Alumno' },
-                  { value: 'group', label: '👥 Grupo' },
-                  { value: 'subgroup', label: '🔹 Subgrupo' },
-                ].map(opt => (
-                  <button key={opt.value} type="button"
-                    onClick={() => handleAssignTypeChange(opt.value)}
-                    className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
-                    style={{
-                      background: assignType === opt.value ? '#7c6af720' : '#22222e',
-                      color: assignType === opt.value ? '#7c6af7' : '#9090a8',
-                      border: `1px solid ${assignType === opt.value ? '#7c6af740' : '#333344'}`,
-                    }}>
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium" style={{ color: '#9090a8' }}>
-                {assignType === 'student' ? 'Alumno' : assignType === 'group' ? 'Grupo' : 'Subgrupo'}
-              </label>
-              <select value={assignTarget}
-                onChange={e => setAssignTarget(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
-                style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }}>
-                <option value="">— Selecciona —</option>
-                {assignType === 'student' && allStudents.map(s => (
-                  <option key={s.id} value={s.id} style={{ background: '#1c1c26' }}>
-                    {s.display_name} (@{s.username})
-                  </option>
-                ))}
-                {assignType === 'group' && allGroups.map(g => (
-                  <option key={g.id} value={g.id} style={{ background: '#1c1c26' }}>
-                    {g.name}
-                  </option>
-                ))}
-                {assignType === 'subgroup' && allSubgroups.map(s => (
-                  <option key={s.id} value={s.id} style={{ background: '#1c1c26' }}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex gap-3">
-              <Button type="submit" className="flex-1">Asignar</Button>
-              <Button type="button" variant="secondary" onClick={() => setShowAssign(false)}>
-                Cancelar
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* Modal ver alumnos */}
-      {selected && (
-        <Modal isOpen={showMembers} onClose={() => setShowMembers(false)}
-          title={`Asignados: ${selected.title}`} size="lg">
-          <div className="flex flex-col gap-3">
-            {assignments.length === 0 ? (
-              <p className="text-sm" style={{ color: '#5a5a70' }}>
-                Este curso no tiene asignaciones todavía.
-              </p>
-            ) : assignments.map(a => (
-              <div key={a.id} className="flex items-center justify-between p-3 rounded-xl"
-                style={{ background: '#0f0f13', border: '1px solid #2a2a38' }}>
-                <div className="flex items-center gap-2">
-                  {a.user_id && (
-                    <>
-                      <span>👤</span>
-                      <span className="text-sm text-white">{a.profiles?.display_name}</span>
-                      <span className="text-xs" style={{ color: '#5a5a70' }}>@{a.profiles?.username}</span>
-                    </>
-                  )}
-                  {a.group_id && (
-                    <>
-                      <span>👥</span>
-                      <span className="text-sm text-white">{a.groups?.name}</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full"
-                        style={{ background: '#22222e', color: '#9090a8' }}>Grupo</span>
-                    </>
-                  )}
-                  {a.subgroup_id && (
-                    <>
-                      <span>🔹</span>
-                      <span className="text-sm text-white">{a.subgroups?.name}</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full"
-                        style={{ background: '#22222e', color: '#9090a8' }}>Subgrupo</span>
-                    </>
-                  )}
-                </div>
-                <Button size="sm" variant="danger" onClick={() => handleRemoveAssignment(a.id)}>
-                  <MdDelete />
-                </Button>
-              </div>
-            ))}
-            <Button variant="secondary" onClick={() => setShowMembers(false)} className="mt-2">
-              Cerrar
-            </Button>
-          </div>
         </Modal>
       )}
     </div>
