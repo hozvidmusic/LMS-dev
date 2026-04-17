@@ -1,11 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { getCourses, getLessonsByCourse, getContentsByLesson, getItemsByContent } from '@/services/courseService';
+import { useParams } from 'next/navigation';
+import { getLessonsByCourse, getContentsByLesson, getItemsByContent } from '@/services/courseService';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/supabase/client';
 import Card from '@/components/ui/Card';
-import { MdCheckCircle, MdChevronLeft, MdExpandMore, MdExpandLess, MdRadioButtonUnchecked } from 'react-icons/md';
+import { MdCheckCircle, MdExpandMore, MdExpandLess, MdRadioButtonUnchecked } from 'react-icons/md';
 
 function extractYoutubeId(url) {
   if (!url) return null;
@@ -118,23 +118,16 @@ function ContentBlock({ content, defaultOpen }) {
 export default function LessonPage() {
   const { courseId, lessonId } = useParams();
   const { profile } = useAuth();
-  const router = useRouter();
-  const [course, setCourse] = useState(null);
-  const [lessons, setLessons] = useState([]);
   const [lesson, setLesson] = useState(null);
   const [contents, setContents] = useState([]);
   const [completed, setCompleted] = useState([]);
   const [marking, setMarking] = useState(false);
+  const [color, setColor] = useState('#7c6af7');
 
   useEffect(() => {
     async function load() {
-      const allCourses = await getCourses();
-      const found = allCourses.find(c => c.id === courseId);
-      setCourse(found);
       const allLessons = await getLessonsByCourse(courseId);
-      const active = allLessons.filter(l => l.status === 'active');
-      setLessons(active);
-      const currentLesson = active.find(l => l.id === lessonId);
+      const currentLesson = allLessons.find(l => l.id === lessonId);
       setLesson(currentLesson);
       if (currentLesson) {
         const allContents = await getContentsByLesson(lessonId);
@@ -147,6 +140,12 @@ export default function LessonPage() {
           .eq('user_id', profile.id)
           .eq('completed', true);
         setCompleted((data || []).map(d => d.lesson_id));
+        const { data: courseData } = await supabase
+          .from('courses')
+          .select('color')
+          .eq('id', courseId)
+          .single();
+        if (courseData?.color) setColor(courseData.color);
       }
     }
     load();
@@ -170,7 +169,6 @@ export default function LessonPage() {
     setMarking(false);
   }
 
-  const color = course?.color || '#7c6af7';
   const isCompleted = completed.includes(lessonId);
 
   if (!lesson) return (
@@ -180,82 +178,34 @@ export default function LessonPage() {
   );
 
   return (
-    <div className="flex gap-6 max-w-6xl mx-auto">
-
-      {/* Barra lateral */}
-      <div className="w-64 flex-shrink-0">
-        <button onClick={() => router.push('/courses')}
-          className="flex items-center gap-1 text-sm mb-4 transition-colors"
-          style={{ color: '#9090a8' }}
-          onMouseEnter={e => e.currentTarget.style.color = color}
-          onMouseLeave={e => e.currentTarget.style.color = '#9090a8'}>
-          <MdChevronLeft /> Mis cursos
-        </button>
-
-        {course && (
-          <div className="flex items-center gap-2 mb-4 p-3 rounded-xl"
-            style={{ background: color + '15' }}>
-            <span className="text-2xl">{course.icon || '🎵'}</span>
-            <span className="text-sm font-semibold text-white">{course.title}</span>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-1">
-          {lessons.map(l => {
-            const isDone = completed.includes(l.id);
-            const isActive = l.id === lessonId;
-            return (
-              <button key={l.id}
-                onClick={() => router.push(`/courses/${courseId}/lessons/${l.id}`)}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-left transition-all w-full"
-                style={{
-                  background: isActive ? color + '20' : 'transparent',
-                  border: `1px solid ${isActive ? color + '40' : 'transparent'}`,
-                }}>
-                {isDone
-                  ? <MdCheckCircle className="flex-shrink-0" style={{ color }} />
-                  : <MdRadioButtonUnchecked className="flex-shrink-0" style={{ color: '#5a5a70' }} />
-                }
-                <span className="text-sm truncate"
-                  style={{ color: isActive ? '#e8e8f0' : isDone ? '#9090a8' : '#c0c0d0' }}>
-                  {l.title}
-                </span>
-              </button>
-            );
-          })}
+    <div className="max-w-3xl mx-auto">
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="font-display font-bold text-2xl text-white">{lesson.title}</h1>
+          {lesson.description && (
+            <p className="text-sm mt-1" style={{ color: '#5a5a70' }}>{lesson.description}</p>
+          )}
         </div>
+        <button onClick={toggleComplete} disabled={marking}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all flex-shrink-0 ml-4"
+          style={{
+            background: isCompleted ? color + '20' : '#1c1c26',
+            color: isCompleted ? color : '#9090a8',
+            border: `1px solid ${isCompleted ? color + '40' : '#2a2a38'}`,
+          }}>
+          {isCompleted ? <MdCheckCircle /> : <MdRadioButtonUnchecked />}
+          {isCompleted ? 'Completada' : 'Marcar como completada'}
+        </button>
       </div>
 
-      {/* Contenido principal */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="font-display font-bold text-2xl text-white">{lesson.title}</h1>
-            {lesson.description && (
-              <p className="text-sm mt-1" style={{ color: '#5a5a70' }}>{lesson.description}</p>
-            )}
-          </div>
-          <button onClick={toggleComplete} disabled={marking}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all flex-shrink-0 ml-4"
-            style={{
-              background: isCompleted ? color + '20' : '#1c1c26',
-              color: isCompleted ? color : '#9090a8',
-              border: `1px solid ${isCompleted ? color + '40' : '#2a2a38'}`,
-            }}>
-            {isCompleted ? <MdCheckCircle /> : <MdRadioButtonUnchecked />}
-            {isCompleted ? 'Completada' : 'Marcar como completada'}
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          {contents.length === 0 ? (
-            <Card><p className="text-center py-8" style={{ color: '#5a5a70' }}>
-              Esta lección no tiene contenidos disponibles aún.
-            </p></Card>
-          ) : contents.map((content, index) => (
-            <ContentBlock key={content.id} content={content} defaultOpen={index === 0} />
-          ))}
-        </div>
+      <div className="flex flex-col gap-3">
+        {contents.length === 0 ? (
+          <Card><p className="text-center py-8" style={{ color: '#5a5a70' }}>
+            Esta lección no tiene contenidos disponibles aún.
+          </p></Card>
+        ) : contents.map((content, index) => (
+          <ContentBlock key={content.id} content={content} defaultOpen={index === 0} />
+        ))}
       </div>
     </div>
   );
