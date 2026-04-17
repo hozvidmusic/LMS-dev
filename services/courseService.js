@@ -6,10 +6,10 @@ export async function getCourses() {
   if (error) throw error;
   return data;
 }
-export async function createCourse({ title, description, color }) {
+export async function createCourse({ title, description, color, icon }) {
   const { data: existing } = await supabase.from('courses').select('id');
   const sort_order = (existing?.length || 0) + 1;
-  const { error } = await supabase.from('courses').insert({ title, description, color, sort_order });
+  const { error } = await supabase.from('courses').insert({ title, description, color, icon, sort_order });
   if (error) throw error;
 }
 export async function updateCourse(id, updates) {

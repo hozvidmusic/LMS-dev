@@ -9,7 +9,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import toast from 'react-hot-toast';
-import { MdAdd, MdEdit, MdChevronRight, MdSchool, MdDelete } from 'react-icons/md';
+import { MdAdd, MdEdit, MdChevronRight, MdDelete } from 'react-icons/md';
 
 const PRESET_COLORS = [
   '#7c6af7','#f75c6a','#f7a23c','#3cf7a2','#3ca2f7',
@@ -26,7 +26,7 @@ function ColorPicker({ value, onChange }) {
             className="w-7 h-7 rounded-full transition-all"
             style={{
               background: c,
-              outline: value === c ? `3px solid white` : '3px solid transparent',
+              outline: value === c ? '3px solid white' : '3px solid transparent',
               outlineOffset: '2px',
             }} />
         ))}
@@ -50,7 +50,7 @@ export default function AdminCourses() {
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [selected, setSelected] = useState(null);
-  const [form, setForm] = useState({ title: '', description: '', color: '#7c6af7' });
+  const [form, setForm] = useState({ title: '', description: '', color: '#7c6af7', icon: '🎵' });
   const router = useRouter();
 
   async function load() {
@@ -65,7 +65,7 @@ export default function AdminCourses() {
     await createCourse(form);
     toast.success('Curso creado');
     setShowCreate(false);
-    setForm({ title: '', description: '', color: '#7c6af7' });
+    setForm({ title: '', description: '', color: '#7c6af7', icon: '🎵' });
     load();
   }
 
@@ -75,6 +75,7 @@ export default function AdminCourses() {
       title: selected.title,
       description: selected.description,
       color: selected.color,
+      icon: selected.icon,
     });
     toast.success('Curso actualizado');
     setShowEdit(false);
@@ -108,15 +109,15 @@ export default function AdminCourses() {
       <div className="flex flex-col gap-3">
         {courses.length === 0 ? (
           <Card><div className="text-center py-12">
-            <MdSchool className="text-4xl mx-auto mb-3" style={{ color: '#2a2a38' }} />
+            <p className="text-4xl mb-3">🎵</p>
             <p style={{ color: '#5a5a70' }}>No hay cursos creados</p>
           </div></Card>
         ) : courses.map(course => (
           <Card key={course.id}>
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
                 style={{ background: (course.color || '#7c6af7') + '30' }}>
-                <MdSchool style={{ color: course.color || '#7c6af7' }} />
+                {course.icon || '🎵'}
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
@@ -161,6 +162,20 @@ export default function AdminCourses() {
               rows={3} className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
               style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
           </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Emoji / Ícono</label>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                style={{ background: (form.color || '#7c6af7') + '30' }}>
+                {form.icon || '🎵'}
+              </div>
+              <input type="text" value={form.icon}
+                onChange={e => setForm(p => ({...p, icon: e.target.value}))}
+                className="flex-1 px-4 py-2.5 rounded-xl text-sm outline-none"
+                style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }}
+                placeholder="Escribe un emoji, ej: 🎹 🥁 🎸" />
+            </div>
+          </div>
           <ColorPicker value={form.color} onChange={c => setForm(p => ({...p, color: c}))} />
           <div className="flex gap-3 pt-2">
             <Button type="submit" className="flex-1">Crear curso</Button>
@@ -181,6 +196,20 @@ export default function AdminCourses() {
                 onChange={e => setSelected(p => ({...p, description: e.target.value}))}
                 rows={3} className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
                 style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Emoji / Ícono</label>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                  style={{ background: (selected.color || '#7c6af7') + '30' }}>
+                  {selected.icon || '🎵'}
+                </div>
+                <input type="text" value={selected.icon || ''}
+                  onChange={e => setSelected(p => ({...p, icon: e.target.value}))}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm outline-none"
+                  style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }}
+                  placeholder="Escribe un emoji, ej: 🎹 🥁 🎸" />
+              </div>
             </div>
             <ColorPicker value={selected.color || '#7c6af7'}
               onChange={c => setSelected(p => ({...p, color: c}))} />
