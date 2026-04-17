@@ -2,26 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+* { box-sizing: border-box; }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #0f0f13;
+  color: #e8e8f0;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  margin: 0;
+  padding: 0;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #16161d; }
+::-webkit-scrollbar-thumb { background: #333344; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #7c6af7; }
+
+.font-display { font-family: var(--font-space), sans-serif; }
+
+.tiptap-editor .ProseMirror { outline: none; min-height: 200px; padding: 16px; }
+.tiptap-editor .ProseMirror p { margin: 0 0 8px 0; }
+.tiptap-editor .ProseMirror h1 { font-size: 1.8rem; font-weight: 700; margin: 16px 0 8px; }
+.tiptap-editor .ProseMirror h2 { font-size: 1.4rem; font-weight: 600; margin: 14px 0 6px; }
+.tiptap-editor .ProseMirror h3 { font-size: 1.15rem; font-weight: 600; margin: 12px 0 4px; }
+.tiptap-editor .ProseMirror ul { padding-left: 20px; list-style: disc; }
+.tiptap-editor .ProseMirror ol { padding-left: 20px; list-style: decimal; }
+.tiptap-editor .ProseMirror strong { font-weight: 700; }
+.tiptap-editor .ProseMirror em { font-style: italic; }
+.tiptap-editor .ProseMirror u { text-decoration: underline; }
+.tiptap-editor .ProseMirror blockquote {
+  border-left: 3px solid #7c6af7;
+  padding-left: 12px;
+  color: #9090a8;
+  margin: 8px 0;
+}
+.tiptap-editor .ProseMirror code {
+  background: #22222e;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
 }
