@@ -86,8 +86,8 @@ function LessonSidebar({ courseId, lessonId, profile, onLogout, onClose }) {
   return (
     <div className="flex flex-col h-full p-4">
       <div className="flex items-center gap-2 px-3 py-4 mb-4">
-        <Image src="/logo.png" alt="Hozvid Academy" width={32} height={32} />
-        <span className="font-display font-bold text-white text-lg">Hozvid</span>
+        <Image src="/logo.png" alt="Hozvid Academy" width={48} height={48} />
+        <span className="font-display font-bold text-white text-sm mt-1">Hozvid Academy</span>
       </div>
 
       <button onClick={() => { router.push('/courses'); onClose?.(); }}
@@ -172,9 +172,9 @@ function SidebarContent({ profile, onLogout, onClose }) {
   const isAdmin = profile?.role === 'admin';
   return (
     <div className="flex flex-col h-full p-4">
-      <div className="flex items-center gap-2 px-3 py-4 mb-6">
-        <Image src="/logo.png" alt="Hozvid Academy" width={32} height={32} />
-        <span className="font-display font-bold text-white text-lg">Hozvid</span>
+      <div className="flex flex-col items-center px-3 py-4 mb-6">
+        <Image src="/logo.png" alt="Hozvid Academy" width={48} height={48} />
+        <span className="font-display font-bold text-white text-sm mt-1">Hozvid Academy</span>
       </div>
       <nav className="flex flex-col gap-1 flex-1">
         <NavItem href="/dashboard" icon={<MdDashboard className="text-lg" />} label="Dashboard" onClose={onClose} />

@@ -7,6 +7,33 @@ import { supabase } from '@/supabase/client';
 import Card from '@/components/ui/Card';
 import { MdCheckCircle, MdExpandMore, MdExpandLess, MdRadioButtonUnchecked } from 'react-icons/md';
 
+function extractDriveId(url) {
+  if (!url) return null;
+  const match = url.match(/drive\.google\.com\/file\/d\/([^/?\s]+)/);
+  if (match) return match[1];
+  const match2 = url.match(/drive\.google\.com\/open\?id=([^&\s]+)/);
+  if (match2) return match2[1];
+  return null;
+}
+
+function toImageUrl(url) {
+  const id = extractDriveId(url);
+  if (id) return `https://lh3.googleusercontent.com/d/${id}`;
+  return url;
+}
+
+function toPreviewUrl(url) {
+  const id = extractDriveId(url);
+  if (id) return `https://drive.google.com/file/d/${id}/preview`;
+  return url;
+}
+
+function toDownloadUrl(url) {
+  const id = extractDriveId(url);
+  if (id) return `https://drive.google.com/uc?export=download&id=${id}`;
+  return url;
+}
+
 function extractYoutubeId(url) {
   if (!url) return null;
   const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
@@ -19,8 +46,9 @@ function ItemRenderer({ item }) {
     case 'text':
       return <div className="text-sm leading-relaxed" style={{ color: '#c0c0d0' }}
         dangerouslySetInnerHTML={{ __html: item.value }} />;
-    case 'youtube': {
-      const videoId = extractYoutubeId(item.value);
+    case 'youtube':
+    case 'video': {
+      const videoId = extractYoutubeId(url);
       return videoId ? (
         <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
           <iframe className="absolute inset-0 w-full h-full rounded-xl"
@@ -29,25 +57,27 @@ function ItemRenderer({ item }) {
       ) : <p style={{ color: '#f87171' }}>URL de YouTube inválida</p>;
     }
     case 'image':
-      return <img src={url} alt={item.title} className="w-full rounded-xl object-contain max-h-96" />;
+      return <img src={toImageUrl(url)} alt={item.title}
+        className="w-full rounded-xl object-contain max-h-96"
+        onError={e => { e.target.src = toPreviewUrl(url); }} />;
     case 'audio':
-      return <audio controls className="w-full" src={url} />;
-    case 'video':
-      return <video controls className="w-full rounded-xl" src={url} />;
+      return (
+        <iframe src={toPreviewUrl(url)} className="w-full rounded-xl"
+          style={{ height: '80px', border: 'none' }} allow="autoplay" />
+      );
     case 'pdf':
-      return <a href={url} target="_blank" rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
-        style={{ background: '#7c6af720', color: '#7c6af7', border: '1px solid #7c6af740' }}>
-        📄 Ver PDF
-      </a>;
+      return (
+        <iframe src={toPreviewUrl(url)} className="w-full rounded-xl"
+          style={{ height: '500px', border: 'none' }} />
+      );
     case 'link':
-      return <a href={item.value} target="_blank" rel="noopener noreferrer"
+      return <a href={url} target="_blank" rel="noopener noreferrer"
         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
         style={{ background: '#7c6af720', color: '#7c6af7', border: '1px solid #7c6af740' }}>
         🔗 Abrir enlace
       </a>;
     case 'file':
-      return <a href={item.file_url} download target="_blank" rel="noopener noreferrer"
+      return <a href={toDownloadUrl(url)} target="_blank" rel="noopener noreferrer"
         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
         style={{ background: '#7c6af720', color: '#7c6af7', border: '1px solid #7c6af740' }}>
         ⬇️ Descargar {item.file_name || 'archivo'}

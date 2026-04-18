@@ -1,7 +1,6 @@
 import { supabase } from '@/supabase/client';
 
 export async function assignCourse({ courseId, userId, groupId, subgroupId }) {
-  // Verificar que no exista ya esa asignación
   const { data: existing } = await supabase
     .from('course_assignments')
     .select('id')
@@ -46,11 +45,10 @@ export async function getCoursesForStudent(userId) {
     .eq('user_id', userId);
 
   // Grupo del alumno
-  const { data: profileGroup } = await supabase
+  const { data: profileGroups } = await supabase
     .from('profile_groups')
     .select('group_id')
-    .eq('user_id', userId)
-    .maybeSingle();
+    .eq('user_id', userId);
 
   // Subgrupos del alumno
   const { data: profileSubgroups } = await supabase
@@ -58,17 +56,19 @@ export async function getCoursesForStudent(userId) {
     .select('subgroup_id')
     .eq('user_id', userId);
 
-  const groupId = profileGroup?.group_id;
-  const subgroupIds = profileSubgroups?.map(s => s.subgroup_id) || [];
+  const groupIds = (profileGroups || []).map(g => g.group_id).filter(Boolean);
+  console.log('profileGroups:', profileGroups, 'groupIds:', groupIds);
+  const subgroupIds = (profileSubgroups || []).map(s => s.subgroup_id).filter(Boolean);
 
   // Asignaciones por grupo
   let byGroup = [];
-  if (groupId) {
+  if (groupIds.length > 0) {
     const { data } = await supabase
       .from('course_assignments')
       .select('course_id')
-      .eq('group_id', groupId);
+      .in('group_id', groupIds);
     byGroup = data || [];
+    console.log('byGroup data:', data, 'for groupIds:', groupIds);
   }
 
   // Asignaciones por subgrupo

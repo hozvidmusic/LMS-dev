@@ -23,6 +23,7 @@ export default function CoursesPage() {
         setCourses(active);
       } else {
         const ids = await getCoursesForStudent(profile.id);
+        console.log('ids:', ids, 'active:', active.map(c => c.id));
         setCourses(active.filter(c => ids.includes(c.id)));
       }
       setLoading(false);
