@@ -188,7 +188,7 @@ function SidebarContent({ profile, onLogout, onClose }) {
               </span>
             </div>
             <NavItem href="/admin/students" icon={<MdPeople className="text-lg" />} label="Alumnos" onClose={onClose} />
-            <NavItem href="/admin/groups" icon={<MdGroups className="text-lg" />} label="Grupos" onClose={onClose} />
+            
             <NavItem href="/admin/assignments" icon={<MdAssignment className="text-lg" />} label="Asignaciones" onClose={onClose} />
             <NavItem href="/admin/courses" icon={<MdSchool className="text-lg" />} label="Cursos" onClose={onClose} />
           </>
