@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { getCourses, getLessonsByCourse } from '@/services/courseService';
 import { supabase } from '@/supabase/client';
 import toast from 'react-hot-toast';
-import { MdDashboard, MdLibraryBooks, MdPerson, MdPeople, MdSchool, MdLogout, MdCheckCircle, MdRadioButtonUnchecked, MdChevronLeft, MdGroups } from 'react-icons/md';
+import { MdDashboard, MdLibraryBooks, MdPerson, MdPeople, MdSchool, MdLogout, MdCheckCircle, MdRadioButtonUnchecked, MdChevronLeft, MdGroups, MdAssignment } from 'react-icons/md';
 import Image from 'next/image';
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -189,6 +189,7 @@ function SidebarContent({ profile, onLogout, onClose }) {
             </div>
             <NavItem href="/admin/students" icon={<MdPeople className="text-lg" />} label="Alumnos" onClose={onClose} />
             <NavItem href="/admin/groups" icon={<MdGroups className="text-lg" />} label="Grupos" onClose={onClose} />
+            <NavItem href="/admin/assignments" icon={<MdAssignment className="text-lg" />} label="Asignaciones" onClose={onClose} />
             <NavItem href="/admin/courses" icon={<MdSchool className="text-lg" />} label="Cursos" onClose={onClose} />
           </>
         )}
