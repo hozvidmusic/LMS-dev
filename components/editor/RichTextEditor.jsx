@@ -12,6 +12,7 @@ export default function RichTextEditor({ value, onChange }) {
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
     ],
     content: value || '',
+    immediatelyRender: false,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
   });
 

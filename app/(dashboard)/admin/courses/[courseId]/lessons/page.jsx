@@ -6,13 +6,13 @@ import {
   getContentsByLesson, createContent, updateContent,
   getItemsByContent, createItem, updateItem, deleteItem, updateItemsOrder
 } from '@/services/courseService';
-import { uploadFile } from '@/services/storageService';
 import { supabase } from '@/supabase/client';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
+import RichTextEditor from '@/components/editor/RichTextEditor';
 import toast from 'react-hot-toast';
 import { MdAdd, MdEdit, MdChevronLeft, MdDelete, MdExpandMore, MdExpandLess, MdDragIndicator } from 'react-icons/md';
 
@@ -27,6 +27,28 @@ const ITEM_TYPES = [
   { value: 'file', label: '⬇️ Archivo' },
 ];
 
+// Convierte URL de Google Drive a URL embebible
+function toEmbedUrl(url, type) {
+  if (!url) return url;
+  // Google Drive file: /file/d/ID/view → /file/d/ID/preview
+  const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (driveMatch) return type === 'image' ? `https://drive.google.com/uc?export=view&id=${driveMatch[1]}` : `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+  // Google Drive open: ?id=ID → embed
+  const driveOpen = url.match(/drive\.google\.com\/open\?id=([^&]+)/);
+  if (driveOpen) return `https://drive.google.com/file/d/${driveOpen[1]}/preview`;
+  return url;
+}
+
+// Convierte URL de Google Drive a URL de descarga directa
+function toDownloadUrl(url) {
+  if (!url) return url;
+  const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (driveMatch) return `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`;
+  const driveOpen = url.match(/drive\.google\.com\/open\?id=([^&]+)/);
+  if (driveOpen) return `https://drive.google.com/uc?export=download&id=${driveOpen[1]}`;
+  return url;
+}
+
 function extractYoutubeId(url) {
   if (!url) return null;
   const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
@@ -34,7 +56,7 @@ function extractYoutubeId(url) {
 }
 
 function ItemRenderer({ item }) {
-  const url = item.file_url || item.value;
+  const url = toEmbedUrl(item.file_url || item.value, item.type);
   switch (item.type) {
     case 'text':
       return <div className="text-sm leading-relaxed" style={{ color: '#c0c0d0' }}
@@ -51,15 +73,30 @@ function ItemRenderer({ item }) {
     case 'image':
       return <img src={url} alt={item.title} className="w-full rounded-xl object-contain max-h-96" />;
     case 'audio':
-      return <audio controls className="w-full" src={url} />;
+      return url.includes('drive.google.com') ? (
+        <iframe src={url} className="w-full rounded-xl" style={{ height: '80px', border: 'none' }} />
+      ) : <audio controls className="w-full" src={url} />;
     case 'video':
-      return <video controls className="w-full rounded-xl" src={url} />;
+      return url.includes('drive.google.com') ? (
+        <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+          <iframe className="absolute inset-0 w-full h-full rounded-xl" src={url}
+            allowFullScreen style={{ border: 'none' }} />
+        </div>
+      ) : <video controls className="w-full rounded-xl" src={url} />;
     case 'pdf':
-      return <a href={url} target="_blank" rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
-        style={{ background: '#7c6af720', color: '#7c6af7', border: '1px solid #7c6af740' }}>
-        📄 Ver PDF
-      </a>;
+      return (
+        <div className="flex flex-col gap-2">
+          {url.includes('drive.google.com') ? (
+            <iframe src={url} className="w-full rounded-xl" style={{ height: '500px', border: 'none' }} />
+          ) : (
+            <a href={url} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
+              style={{ background: '#7c6af720', color: '#7c6af7', border: '1px solid #7c6af740' }}>
+              📄 Ver PDF
+            </a>
+          )}
+        </div>
+      );
     case 'link':
       return <a href={item.value} target="_blank" rel="noopener noreferrer"
         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
@@ -67,7 +104,7 @@ function ItemRenderer({ item }) {
         🔗 Abrir enlace
       </a>;
     case 'file':
-      return <a href={item.file_url} download target="_blank" rel="noopener noreferrer"
+      return <a href={toDownloadUrl(item.file_url || item.value)} download target="_blank" rel="noopener noreferrer"
         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
         style={{ background: '#7c6af720', color: '#7c6af7', border: '1px solid #7c6af740' }}>
         ⬇️ Descargar {item.file_name || 'archivo'}
@@ -78,31 +115,32 @@ function ItemRenderer({ item }) {
 
 function ItemForm({ contentId, item, onSave, onCancel }) {
   const [form, setForm] = useState(item || { title: '', type: 'text', value: '', file_url: '', file_name: '' });
-  const [uploading, setUploading] = useState(false);
-  const needsFile = ['image', 'audio', 'video', 'pdf', 'file'].includes(form.type);
-  const needsUrl = ['youtube', 'link'].includes(form.type);
+  const needsUrl = ['youtube', 'link', 'image', 'audio', 'video', 'pdf', 'file'].includes(form.type);
   const needsText = form.type === 'text';
-
-  async function handleFile(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const { url, fileName } = await uploadFile(file, form.type);
-      setForm(p => ({ ...p, file_url: url, file_name: fileName }));
-      toast.success('Archivo subido');
-    } catch { toast.error('Error al subir archivo'); }
-    setUploading(false);
-  }
+  const urlLabel = {
+    youtube: 'URL de YouTube',
+    link: 'URL del enlace',
+    image: 'URL de imagen (Google Drive o directa)',
+    audio: 'URL de audio (Google Drive o directa)',
+    video: 'URL de video (Google Drive o directa)',
+    pdf: 'URL de PDF (Google Drive o directa)',
+    file: 'URL de archivo (Google Drive o directa)',
+  };
 
   async function handleSubmit(e) {
     e.preventDefault();
     try {
+      const data = { ...form };
+      // Para file, guardamos la URL en file_url también
+      if (form.type === 'file') {
+        data.file_url = form.value;
+        data.file_name = form.file_name || 'archivo';
+      }
       if (item) {
-        await updateItem(item.id, form);
+        await updateItem(item.id, data);
         toast.success('Ítem actualizado');
       } else {
-        await createItem({ ...form, content_id: contentId });
+        await createItem({ ...data, content_id: contentId });
         toast.success('Ítem creado');
       }
       onSave();
@@ -131,27 +169,34 @@ function ItemForm({ contentId, item, onSave, onCancel }) {
           ))}
         </div>
       </div>
+
       {needsText && (
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Contenido</label>
-          <textarea value={form.value} onChange={e => setForm(p => ({ ...p, value: e.target.value }))}
-            rows={4} className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
-            style={{ background: '#1c1c26', border: '1px solid #333344', color: '#e8e8f0' }} />
+          <RichTextEditor value={form.value}
+            onChange={val => setForm(p => ({ ...p, value: val }))} />
         </div>
       )}
+
       {needsUrl && (
-        <Input label={form.type === 'youtube' ? 'URL de YouTube' : 'URL del enlace'}
-          value={form.value} onChange={e => setForm(p => ({ ...p, value: e.target.value }))} />
-      )}
-      {needsFile && (
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Archivo</label>
-          <input type="file" onChange={handleFile} disabled={uploading}
-            className="text-sm" style={{ color: '#9090a8' }} />
-          {uploading && <p className="text-xs" style={{ color: '#7c6af7' }}>Subiendo...</p>}
-          {form.file_url && <p className="text-xs" style={{ color: '#3cf7a2' }}>✓ Archivo listo</p>}
+        <div className="flex flex-col gap-2">
+          <Input label={urlLabel[form.type]} value={form.value}
+            onChange={e => setForm(p => ({ ...p, value: e.target.value }))}
+            placeholder="https://..." />
+          {form.type === 'file' && (
+            <Input label="Nombre del archivo (opcional)" value={form.file_name}
+              onChange={e => setForm(p => ({ ...p, file_name: e.target.value }))}
+              placeholder="ej: Partitura Lección 1.pdf" />
+          )}
+          {form.value && ['image', 'audio', 'video', 'pdf'].includes(form.type) && (
+            <div className="p-2 rounded-xl" style={{ background: '#1c1c26' }}>
+              <p className="text-xs mb-2" style={{ color: '#5a5a70' }}>Vista previa:</p>
+              <ItemRenderer item={{ ...form, file_url: form.value }} />
+            </div>
+          )}
         </div>
       )}
+
       <div className="flex gap-2 pt-1">
         <Button type="submit" size="sm" className="flex-1">{item ? 'Guardar' : 'Agregar'}</Button>
         <Button type="button" size="sm" variant="secondary" onClick={onCancel}>Cancelar</Button>
@@ -196,7 +241,7 @@ function ContentBlock({ content, onReload }) {
   }
 
   async function handleDeleteContent() {
-    if (!confirm(`¿Eliminar el contenido "${content.title}"? Se eliminarán todos sus ítems.`)) return;
+    if (!confirm(`¿Eliminar el contenido "${content.title}"?`)) return;
     const { error } = await supabase.from('contents').delete().eq('id', content.id);
     if (error) { toast.error('Error al eliminar'); return; }
     toast.success('Contenido eliminado');
@@ -382,7 +427,7 @@ export default function AdminLessons() {
   }
 
   async function handleDelete(lesson) {
-    if (!confirm(`¿Eliminar "${lesson.title}"? Esta acción no se puede deshacer.`)) return;
+    if (!confirm(`¿Eliminar "${lesson.title}"?`)) return;
     const { error } = await supabase.from('lessons').delete().eq('id', lesson.id);
     if (error) { toast.error('Error al eliminar lección'); return; }
     toast.success('Lección eliminada');
