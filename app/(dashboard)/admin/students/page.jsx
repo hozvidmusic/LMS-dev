@@ -502,7 +502,6 @@ function GroupsTab() {
                   {/* General — alumnos sin subgrupos */}
                   <GeneralSection
                     mems={mems}
-                    subs={subs}
                     groupId={group.id}
                     onRemove={handleRemoveMember}
                     onManageSubgroups={(member) => openManageSubgroups(group, member)}
@@ -624,7 +623,7 @@ function GroupsTab() {
   );
 }
 
-function GeneralSection({ mems, subs, groupId, onRemove, onManageSubgroups }) {
+function GeneralSection({ mems, groupId, onRemove, onManageSubgroups }) {
   const [expanded, setExpanded] = useState(false);
 
   // Alumnos sin ningún subgrupo asignado

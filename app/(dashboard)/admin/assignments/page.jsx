@@ -9,7 +9,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import toast from 'react-hot-toast';
-import { MdExpandMore, MdExpandLess, MdAdd, MdDelete, MdSchool } from 'react-icons/md';
+import { MdExpandMore, MdExpandLess, MdAdd, MdDelete } from 'react-icons/md';
 
 export default function AssignmentsPage() {
   const [courses, setCourses] = useState([]);

@@ -1,13 +1,13 @@
 'use client';
 import Link from 'next/link';
-import { usePathname, useRouter, useParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { logout } from '@/services/authService';
 import { useEffect, useState } from 'react';
 import { getCourses, getLessonsByCourse } from '@/services/courseService';
 import { supabase } from '@/supabase/client';
 import toast from 'react-hot-toast';
-import { MdDashboard, MdLibraryBooks, MdPerson, MdPeople, MdSchool, MdLogout, MdCheckCircle, MdRadioButtonUnchecked, MdChevronLeft, MdGroups, MdAssignment } from 'react-icons/md';
+import { MdDashboard, MdLibraryBooks, MdPerson, MdPeople, MdSchool, MdLogout, MdCheckCircle, MdRadioButtonUnchecked, MdChevronLeft, MdAssignment } from 'react-icons/md';
 import Image from 'next/image';
 
 export default function Sidebar({ isOpen, onClose }) {
