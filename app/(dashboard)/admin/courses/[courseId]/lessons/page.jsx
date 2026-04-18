@@ -19,33 +19,40 @@ import { MdAdd, MdEdit, MdChevronLeft, MdDelete, MdExpandMore, MdExpandLess, MdD
 const ITEM_TYPES = [
   { value: 'text', label: '📝 Texto' },
   { value: 'youtube', label: '▶️ YouTube' },
+  { value: 'video', label: '🎬 Video privado' },
   { value: 'image', label: '🖼️ Imagen' },
   { value: 'audio', label: '🎵 Audio' },
-  { value: 'video', label: '🎬 Video' },
   { value: 'pdf', label: '📄 PDF' },
   { value: 'link', label: '🔗 Enlace' },
   { value: 'file', label: '⬇️ Archivo' },
 ];
 
-// Convierte URL de Google Drive a URL embebible
-function toEmbedUrl(url, type) {
-  if (!url) return url;
-  // Google Drive file: /file/d/ID/view → /file/d/ID/preview
-  const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
-  if (driveMatch) return type === 'image' ? `https://drive.google.com/uc?export=view&id=${driveMatch[1]}` : `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
-  // Google Drive open: ?id=ID → embed
-  const driveOpen = url.match(/drive\.google\.com\/open\?id=([^&]+)/);
-  if (driveOpen) return `https://drive.google.com/file/d/${driveOpen[1]}/preview`;
+function extractDriveId(url) {
+  if (!url) return null;
+  const match = url.match(/drive\.google\.com\/file\/d\/([^/?\s]+)/);
+  if (match) return match[1];
+  const match2 = url.match(/drive\.google\.com\/open\?id=([^&\s]+)/);
+  if (match2) return match2[1];
+  const match3 = url.match(/id=([^&\s]+)/);
+  if (match3) return match3[1];
+  return null;
+}
+
+function toImageUrl(url) {
+  const id = extractDriveId(url);
+  if (id) return `https://lh3.googleusercontent.com/d/${id}`;
   return url;
 }
 
-// Convierte URL de Google Drive a URL de descarga directa
+function toPreviewUrl(url) {
+  const id = extractDriveId(url);
+  if (id) return `https://drive.google.com/file/d/${id}/preview`;
+  return url;
+}
+
 function toDownloadUrl(url) {
-  if (!url) return url;
-  const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
-  if (driveMatch) return `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`;
-  const driveOpen = url.match(/drive\.google\.com\/open\?id=([^&]+)/);
-  if (driveOpen) return `https://drive.google.com/uc?export=download&id=${driveOpen[1]}`;
+  const id = extractDriveId(url);
+  if (id) return `https://drive.google.com/uc?export=download&id=${id}`;
   return url;
 }
 
@@ -56,13 +63,14 @@ function extractYoutubeId(url) {
 }
 
 function ItemRenderer({ item }) {
-  const url = toEmbedUrl(item.file_url || item.value, item.type);
+  const url = item.file_url || item.value;
   switch (item.type) {
     case 'text':
       return <div className="text-sm leading-relaxed" style={{ color: '#c0c0d0' }}
         dangerouslySetInnerHTML={{ __html: item.value }} />;
-    case 'youtube': {
-      const videoId = extractYoutubeId(item.value);
+    case 'youtube':
+    case 'video': {
+      const videoId = extractYoutubeId(url);
       return videoId ? (
         <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
           <iframe className="absolute inset-0 w-full h-full rounded-xl"
@@ -71,40 +79,27 @@ function ItemRenderer({ item }) {
       ) : <p style={{ color: '#f87171' }}>URL de YouTube inválida</p>;
     }
     case 'image':
-      return <img src={url} alt={item.title} className="w-full rounded-xl object-contain max-h-96" />;
+      return <img src={toImageUrl(url)} alt={item.title}
+        className="w-full rounded-xl object-contain max-h-96"
+        onError={e => { e.target.src = toPreviewUrl(url); }} />;
     case 'audio':
-      return url.includes('drive.google.com') ? (
-        <iframe src={url} className="w-full rounded-xl" style={{ height: '80px', border: 'none' }} />
-      ) : <audio controls className="w-full" src={url} />;
-    case 'video':
-      return url.includes('drive.google.com') ? (
-        <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-          <iframe className="absolute inset-0 w-full h-full rounded-xl" src={url}
-            allowFullScreen style={{ border: 'none' }} />
-        </div>
-      ) : <video controls className="w-full rounded-xl" src={url} />;
+      return (
+        <iframe src={toPreviewUrl(url)} className="w-full rounded-xl"
+          style={{ height: '80px', border: 'none' }} allow="autoplay" />
+      );
     case 'pdf':
       return (
-        <div className="flex flex-col gap-2">
-          {url.includes('drive.google.com') ? (
-            <iframe src={url} className="w-full rounded-xl" style={{ height: '500px', border: 'none' }} />
-          ) : (
-            <a href={url} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
-              style={{ background: '#7c6af720', color: '#7c6af7', border: '1px solid #7c6af740' }}>
-              📄 Ver PDF
-            </a>
-          )}
-        </div>
+        <iframe src={toPreviewUrl(url)} className="w-full rounded-xl"
+          style={{ height: '500px', border: 'none' }} />
       );
     case 'link':
-      return <a href={item.value} target="_blank" rel="noopener noreferrer"
+      return <a href={url} target="_blank" rel="noopener noreferrer"
         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
         style={{ background: '#7c6af720', color: '#7c6af7', border: '1px solid #7c6af740' }}>
         🔗 Abrir enlace
       </a>;
     case 'file':
-      return <a href={toDownloadUrl(item.file_url || item.value)} download target="_blank" rel="noopener noreferrer"
+      return <a href={toDownloadUrl(url)} target="_blank" rel="noopener noreferrer"
         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
         style={{ background: '#7c6af720', color: '#7c6af7', border: '1px solid #7c6af740' }}>
         ⬇️ Descargar {item.file_name || 'archivo'}
@@ -115,27 +110,30 @@ function ItemRenderer({ item }) {
 
 function ItemForm({ contentId, item, onSave, onCancel }) {
   const [form, setForm] = useState(item || { title: '', type: 'text', value: '', file_url: '', file_name: '' });
-  const needsUrl = ['youtube', 'link', 'image', 'audio', 'video', 'pdf', 'file'].includes(form.type);
+
+  const needsYoutubeUrl = ['youtube', 'video'].includes(form.type);
+  const needsLinkUrl = form.type === 'link';
+  const needsDriveUrl = ['image', 'audio', 'pdf', 'file'].includes(form.type);
   const needsText = form.type === 'text';
-  const urlLabel = {
-    youtube: 'URL de YouTube',
-    link: 'URL del enlace',
-    image: 'URL de imagen (Google Drive o directa)',
-    audio: 'URL de audio (Google Drive o directa)',
-    video: 'URL de video (Google Drive o directa)',
-    pdf: 'URL de PDF (Google Drive o directa)',
-    file: 'URL de archivo (Google Drive o directa)',
+
+  const urlLabels = {
+    image: 'URL de imagen (Google Drive)',
+    audio: 'URL de audio (Google Drive)',
+    pdf: 'URL de PDF (Google Drive)',
+    file: 'URL de archivo (Google Drive)',
+  };
+
+  const urlPlaceholders = {
+    image: 'https://drive.google.com/file/d/...',
+    audio: 'https://drive.google.com/file/d/...',
+    pdf: 'https://drive.google.com/file/d/...',
+    file: 'https://drive.google.com/file/d/...',
   };
 
   async function handleSubmit(e) {
     e.preventDefault();
     try {
       const data = { ...form };
-      // Para file, guardamos la URL en file_url también
-      if (form.type === 'file') {
-        data.file_url = form.value;
-        data.file_name = form.file_name || 'archivo';
-      }
       if (item) {
         await updateItem(item.id, data);
         toast.success('Ítem actualizado');
@@ -173,25 +171,46 @@ function ItemForm({ contentId, item, onSave, onCancel }) {
       {needsText && (
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Contenido</label>
-          <RichTextEditor value={form.value}
-            onChange={val => setForm(p => ({ ...p, value: val }))} />
+          <RichTextEditor value={form.value} onChange={val => setForm(p => ({ ...p, value: val }))} />
         </div>
       )}
 
-      {needsUrl && (
+      {needsYoutubeUrl && (
+        <Input label="URL de YouTube" value={form.value}
+          placeholder="https://youtube.com/watch?v=..."
+          onChange={e => setForm(p => ({ ...p, value: e.target.value }))} />
+      )}
+
+      {needsLinkUrl && (
+        <Input label="URL del enlace" value={form.value}
+          placeholder="https://..."
+          onChange={e => setForm(p => ({ ...p, value: e.target.value }))} />
+      )}
+
+      {needsDriveUrl && (
         <div className="flex flex-col gap-2">
-          <Input label={urlLabel[form.type]} value={form.value}
-            onChange={e => setForm(p => ({ ...p, value: e.target.value }))}
-            placeholder="https://..." />
+          <Input label={urlLabels[form.type]} value={form.value}
+            placeholder={urlPlaceholders[form.type]}
+            onChange={e => setForm(p => ({ ...p, value: e.target.value }))} />
           {form.type === 'file' && (
             <Input label="Nombre del archivo (opcional)" value={form.file_name}
-              onChange={e => setForm(p => ({ ...p, file_name: e.target.value }))}
-              placeholder="ej: Partitura Lección 1.pdf" />
+              placeholder="ej: Partitura Lección 1.pdf"
+              onChange={e => setForm(p => ({ ...p, file_name: e.target.value }))} />
           )}
-          {form.value && ['image', 'audio', 'video', 'pdf'].includes(form.type) && (
+          {/* Vista previa */}
+          {form.value && form.type === 'image' && (
             <div className="p-2 rounded-xl" style={{ background: '#1c1c26' }}>
               <p className="text-xs mb-2" style={{ color: '#5a5a70' }}>Vista previa:</p>
-              <ItemRenderer item={{ ...form, file_url: form.value }} />
+              <img src={toImageUrl(form.value)} alt="preview"
+                className="w-full rounded-xl object-contain max-h-48"
+                onError={e => e.target.style.display = 'none'} />
+            </div>
+          )}
+          {form.value && form.type === 'pdf' && (
+            <div className="p-2 rounded-xl" style={{ background: '#1c1c26' }}>
+              <p className="text-xs mb-2" style={{ color: '#5a5a70' }}>Vista previa:</p>
+              <iframe src={toPreviewUrl(form.value)} className="w-full rounded-xl"
+                style={{ height: '300px', border: 'none' }} />
             </div>
           )}
         </div>

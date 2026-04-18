@@ -1,6 +1,6 @@
 import { supabase } from '@/supabase/client';
 
-const BUCKET = 'lms-files';
+const BUCKET = 'LMS-files';
 
 export async function uploadFile(file, folder = 'misc', onProgress) {
   const timestamp = Date.now();
