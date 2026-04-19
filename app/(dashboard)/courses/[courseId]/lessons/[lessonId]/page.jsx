@@ -240,4 +240,3 @@ export default function LessonPage() {
     </div>
   );
 }
-export async function generateStaticParams() { return []; }
