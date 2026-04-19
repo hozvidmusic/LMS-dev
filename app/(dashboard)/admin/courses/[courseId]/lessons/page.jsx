@@ -545,3 +545,4 @@ export default function AdminLessons() {
     </div>
   );
 }
+export async function generateStaticParams() { return []; }
