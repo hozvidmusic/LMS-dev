@@ -8,23 +8,33 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   async function loadProfile(userId) {
     if (!userId) { setProfile(null); return; }
-    const { data } = await supabase
-      .from('profiles').select('*').eq('id', userId).single();
-    setProfile(data);
+    try {
+      const { data } = await supabase
+        .from('profiles').select('*').eq('id', userId).single();
+      setProfile(data);
+    } catch {
+      setProfile(null);
+    }
   }
   async function updateLastLogin(userId) {
-    await supabase.from('profiles')
-      .update({ last_login: new Date().toISOString() }).eq('id', userId);
+    try {
+      await supabase.from('profiles')
+        .update({ last_login: new Date().toISOString() }).eq('id', userId);
+    } catch {}
   }
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const timeout = setTimeout(() => setLoading(false), 5000);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        loadProfile(session.user.id).finally(() => setLoading(false));
+        await loadProfile(session.user.id);
         updateLastLogin(session.user.id);
-      } else {
-        setLoading(false);
       }
+      clearTimeout(timeout);
+      setLoading(false);
+    }).catch(() => {
+      clearTimeout(timeout);
+      setLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
@@ -33,7 +43,10 @@ export function AuthProvider({ children }) {
         if (session?.user) updateLastLogin(session.user.id);
       }
     );
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
   const value = { user, profile, loading, refreshProfile: () => loadProfile(user?.id) };
   if (loading) return (
