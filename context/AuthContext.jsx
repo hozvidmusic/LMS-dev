@@ -10,9 +10,11 @@ export function AuthProvider({ children }) {
 
   async function loadProfile(userId) {
     if (!userId) { if (mounted.current) setProfile(null); return; }
-    const { data } = await supabase
-      .from('profiles').select('*').eq('id', userId).single();
-    if (mounted.current) setProfile(data);
+    try {
+      const { data } = await supabase
+        .from('profiles').select('*').eq('id', userId).single();
+      if (mounted.current) setProfile(data);
+    } catch {}
   }
 
   async function updateLastLogin(userId) {
@@ -24,7 +26,14 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     mounted.current = true;
+    
+    // Timeout de seguridad — máximo 3 segundos de carga
+    const timeout = setTimeout(() => {
+      if (mounted.current) setLoading(false);
+    }, 3000);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      clearTimeout(timeout);
       if (!mounted.current) return;
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -32,7 +41,11 @@ export function AuthProvider({ children }) {
         updateLastLogin(session.user.id);
       }
       setLoading(false);
+    }).catch(() => {
+      clearTimeout(timeout);
+      if (mounted.current) setLoading(false);
     });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (!mounted.current) return;
@@ -43,6 +56,7 @@ export function AuthProvider({ children }) {
     );
     return () => {
       mounted.current = false;
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);
