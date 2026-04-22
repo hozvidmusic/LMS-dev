@@ -23,49 +23,41 @@ export function AuthProvider({ children }) {
     } catch {}
   }
   useEffect(() => {
-    const timeout = setTimeout(() => setLoading(false), 5000);
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setUser(session?.user ?? null);
       if (session?.user) {
+        setUser(session.user);
         await loadProfile(session.user.id);
         updateLastLogin(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
       }
-      clearTimeout(timeout);
-      setLoading(false);
-    }).catch(() => {
-      clearTimeout(timeout);
       setLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        setUser(session?.user ?? null);
-        await loadProfile(session?.user?.id);
-        if (session?.user) updateLastLogin(session.user.id);
+        if (session?.user) {
+          setUser(session.user);
+          await loadProfile(session.user.id);
+          updateLastLogin(session.user.id);
+        } else {
+          setUser(null);
+          setProfile(null);
+        }
       }
     );
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
+    return () => subscription.unsubscribe();
   }, []);
   const value = { user, profile, loading, refreshProfile: () => loadProfile(user?.id) };
   if (loading) return (
     <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100vh',
-      background: '#0f0f13',
-      flexDirection: 'column',
-      gap: '16px'
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      height: '100vh', background: '#0f0f13', flexDirection: 'column', gap: '16px'
     }}>
       <div style={{
-        width: '40px',
-        height: '40px',
-        border: '3px solid #2a2a38',
-        borderTop: '3px solid #7c6af7',
-        borderRadius: '50%',
-        animation: 'spin 0.8s linear infinite'
+        width: '40px', height: '40px',
+        border: '3px solid #2a2a38', borderTop: '3px solid #7c6af7',
+        borderRadius: '50%', animation: 'spin 0.8s linear infinite'
       }} />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <p style={{ color: '#5a5a70', fontSize: '14px' }}>Cargando...</p>
