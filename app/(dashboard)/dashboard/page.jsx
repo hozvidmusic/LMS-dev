@@ -8,7 +8,7 @@ import Card from '@/components/ui/Card';
 import { MdSchool, MdPeople, MdMusicNote, MdTrendingUp } from 'react-icons/md';
 
 export default function Dashboard() {
-  const { profile } = useAuth();
+  const { profile, loading } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState({ courses: 0, students: 0 });
   const [myCourses, setMyCourses] = useState([]);
@@ -27,8 +27,10 @@ export default function Dashboard() {
         setStats({ courses: active.length });
       }
     }
-    if (profile) load();
-  }, [profile, isAdmin]);
+    if (profile && !loading) load();
+  }, [profile, isAdmin, loading]);
+
+  if (loading || !profile) return null;
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
@@ -78,8 +80,8 @@ export default function Dashboard() {
                 onClick={() => router.push(isAdmin ? '/admin/courses' : '/courses')}>
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: '#7c6af720' }}>
-                    <MdSchool style={{ color: '#7c6af7' }} />
+                    style={{ background: (course.color || '#7c6af7') + '20' }}>
+                    <span className="text-xl">{course.icon || '🎵'}</span>
                   </div>
                   <div>
                     <h3 className="font-semibold text-white text-sm">{course.title}</h3>
