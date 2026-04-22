@@ -26,37 +26,37 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     mounted.current = true;
-    
-    // Timeout de seguridad — máximo 3 segundos de carga
-    const timeout = setTimeout(() => {
+    async function init() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted.current) return;
+        if (session?.user) {
+          setUser(session.user);
+          await loadProfile(session.user.id);
+          updateLastLogin(session.user.id);
+        } else {
+          setUser(null);
+          setProfile(null);
+        }
+      } catch {}
       if (mounted.current) setLoading(false);
-    }, 3000);
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      clearTimeout(timeout);
-      if (!mounted.current) return;
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
-        updateLastLogin(session.user.id);
-      }
-      setLoading(false);
-    }).catch(() => {
-      clearTimeout(timeout);
-      if (mounted.current) setLoading(false);
-    });
-
+    }
+    init();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (!mounted.current) return;
-        setUser(session?.user ?? null);
-        await loadProfile(session?.user?.id);
-        if (session?.user) updateLastLogin(session.user.id);
+        if (session?.user) {
+          setUser(session.user);
+          await loadProfile(session.user.id);
+          updateLastLogin(session.user.id);
+        } else {
+          setUser(null);
+          setProfile(null);
+        }
       }
     );
     return () => {
       mounted.current = false;
-      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);
@@ -64,7 +64,7 @@ export function AuthProvider({ children }) {
   const value = { user, profile, loading, refreshProfile: () => loadProfile(user?.id) };
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 }
