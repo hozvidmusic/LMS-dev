@@ -29,15 +29,12 @@ export function AuthProvider({ children }) {
     mounted.current = true;
     async function init() {
       try {
-        const { data: { user: u } } = await supabase.auth.getUser();
+        const { data: { session } } = await supabase.auth.getSession();
         if (!mounted.current) return;
-        if (u) {
-          setUser(u);
-          await loadProfile(u.id);
-          updateLastLogin(u.id);
-        } else {
-          setUser(null);
-          setProfile(null);
+        if (session?.user) {
+          setUser(session.user);
+          await loadProfile(session.user.id);
+          updateLastLogin(session.user.id);
         }
       } catch {}
       if (mounted.current) setLoading(false);
