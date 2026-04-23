@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { logout } from '@/services/authService';
 import { useEffect, useState } from 'react';
 import { getCourses, getLessonsByCourse } from '@/services/courseService';
-import { getUnreadCountForStudent } from '@/services/announcementService';
+import { useAnnouncements } from '@/context/AnnouncementsContext';
 import { supabase } from '@/supabase/client';
 import toast from 'react-hot-toast';
 import {
@@ -210,16 +210,7 @@ function StudentViewMenu({ onClose, unreadCount }) {
 
 function SidebarContent({ profile, onLogout, onClose }) {
   const isAdmin = profile?.role === 'admin';
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    if (!profile) return;
-    getUnreadCountForStudent(profile.id).then(setUnreadCount);
-    const interval = setInterval(() => {
-      getUnreadCountForStudent(profile.id).then(setUnreadCount);
-    }, 60000); // refresca cada minuto
-    return () => clearInterval(interval);
-  }, [profile]);
+  const { unreadCount } = useAnnouncements();
 
   return (
     <div className="flex flex-col h-full p-4">

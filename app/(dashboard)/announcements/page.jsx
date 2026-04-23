@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useAnnouncements } from '@/context/AnnouncementsContext';
 import { getAnnouncementsForStudent, markAsRead } from '@/services/announcementService';
 import Card from '@/components/ui/Card';
 import { MdAnnouncement, MdCheckCircle, MdRadioButtonUnchecked } from 'react-icons/md';
@@ -28,19 +29,14 @@ function isExpired(a) {
 
 export default function AnnouncementsPage() {
   const { profile } = useAuth();
+  const { refresh } = useAnnouncements();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  async function load() {
-    if (!profile) return;
-    const data = await getAnnouncementsForStudent(profile.id);
-    setAnnouncements(data);
-    setLoading(false);
-  }
-
   useEffect(() => {
-    load();
-    // Verificar expirados cada 60 segundos
+    if (!profile) return;
+    getAnnouncementsForStudent(profile.id)
+      .then(data => { setAnnouncements(data); setLoading(false); });
     const interval = setInterval(() => {
       setAnnouncements(prev => prev.filter(a => !isExpired(a)));
     }, 60000);
@@ -55,6 +51,7 @@ export default function AnnouncementsPage() {
         ? { ...item, read_by: [...(item.read_by || []), profile.id] }
         : item
     ));
+    await refresh(); // Actualiza el badge del sidebar inmediatamente
   }
 
   const unreadCount = announcements.filter(a => !a.read_by?.includes(profile?.id)).length;
