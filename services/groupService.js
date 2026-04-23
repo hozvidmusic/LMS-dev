@@ -3,7 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_KEY
+  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_KEY,
+  { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
 export async function getGroups() {
@@ -13,9 +14,9 @@ export async function getGroups() {
   return data;
 }
 
-export async function createGroup(name, color) {
+export async function createGroup({ name, description }) {
   const { data, error } = await supabaseAdmin
-    .from('groups').insert({ name, color }).select().single();
+    .from('groups').insert({ name, description }).select().single();
   if (error) throw error;
   return data;
 }
@@ -44,9 +45,10 @@ export async function getAllSubgroups() {
   return data;
 }
 
-export async function createSubgroup(groupId, name, color) {
+// La página llama createSubgroup({ groupId, name, description, color })
+export async function createSubgroup({ groupId, name, description, color }) {
   const { data, error } = await supabaseAdmin
-    .from('subgroups').insert({ group_id: groupId, name, color }).select().single();
+    .from('subgroups').insert({ group_id: groupId, name, description, color }).select().single();
   if (error) throw error;
   return data;
 }
@@ -75,33 +77,51 @@ export async function getSubgroupMembers(subgroupId) {
   return data;
 }
 
-export async function addMemberToGroup(userId, groupId) {
+// La página importa getStudentCurrentGroup
+export async function getStudentCurrentGroup(userId) {
+  const { data, error } = await supabaseAdmin
+    .from('profile_groups').select('*, groups(*)').eq('user_id', userId).single();
+  if (error) return null;
+  return data;
+}
+
+// La página importa getStudentSubgroups
+export async function getStudentSubgroups(userId) {
+  const { data, error } = await supabaseAdmin
+    .from('profile_subgroups').select('*, subgroups(*)').eq('user_id', userId);
+  if (error) return [];
+  return data;
+}
+
+// La página importa assignStudentToGroup({ userId, groupId })
+export async function assignStudentToGroup({ userId, groupId }) {
   const { error } = await supabaseAdmin
     .from('profile_groups').upsert({ user_id: userId, group_id: groupId });
   if (error) throw error;
 }
 
-export async function removeMemberFromGroup(userId) {
+// La página importa removeStudentFromGroup(userId)
+export async function removeStudentFromGroup(userId) {
   const { error } = await supabaseAdmin
     .from('profile_groups').delete().eq('user_id', userId);
   if (error) throw error;
 }
 
-export async function addMemberToSubgroup(userId, subgroupId) {
+// La página importa assignStudentToSubgroup({ userId, subgroupId })
+export async function assignStudentToSubgroup({ userId, subgroupId }) {
   const { error } = await supabaseAdmin
     .from('profile_subgroups').upsert({ user_id: userId, subgroup_id: subgroupId });
   if (error) throw error;
 }
 
-export async function removeMemberFromSubgroup(userId, subgroupId) {
+// La página importa removeStudentFromSubgroup({ userId, subgroupId })
+export async function removeStudentFromSubgroup({ userId, subgroupId }) {
   const { error } = await supabaseAdmin
     .from('profile_subgroups').delete().eq('user_id', userId).eq('subgroup_id', subgroupId);
   if (error) throw error;
 }
 
+// Para compatibilidad con announcementService
 export async function getUserGroup(userId) {
-  const { data, error } = await supabaseAdmin
-    .from('profile_groups').select('*, groups(*)').eq('user_id', userId).single();
-  if (error) return null;
-  return data;
+  return getStudentCurrentGroup(userId);
 }
