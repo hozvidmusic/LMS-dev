@@ -4,7 +4,8 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   getLessonsByCourse, createLesson, updateLesson, toggleLessonStatus,
   getContentsByLesson, createContent, updateContent,
-  getItemsByContent, createItem, updateItem, deleteItem, updateItemsOrder
+  getItemsByContent, createItem, updateItem, deleteItem, updateItemsOrder,
+  updateLessonsOrder
 } from '@/services/courseService';
 import { supabase } from '@/supabase/client';
 import Card from '@/components/ui/Card';
@@ -24,12 +25,12 @@ const ITEM_TYPES = [
   { value: 'audio', label: '🎵 Audio' },
   { value: 'pdf', label: '📄 PDF' },
   { value: 'link', label: '🔗 Enlace' },
-  { value: 'file', label: '⬇️ Archivo' },
+  { value: 'file', label: '⌗ Archivo' },
 ];
 
 function extractDriveId(url) {
   if (!url) return null;
-  const match = url.match(/drive\.google\.com\/file\/d\/([^/?\s]+)/);
+  const match = url.match(/drive\.google\.com\/file\/d\/([^/?\\s]+)\//);
   if (match) return match[1];
   const match2 = url.match(/drive\.google\.com\/open\?id=([^&\s]+)/);
   if (match2) return match2[1];
@@ -37,25 +38,18 @@ function extractDriveId(url) {
   if (match3) return match3[1];
   return null;
 }
-
 function toImageUrl(url) {
   const id = extractDriveId(url);
-  if (id) return `https://lh3.googleusercontent.com/d/${id}`;
-  return url;
+  return id ? `https://lh3.googleusercontent.com/d/${id}` : url;
 }
-
 function toPreviewUrl(url) {
   const id = extractDriveId(url);
-  if (id) return `https://drive.google.com/file/d/${id}/preview`;
-  return url;
+  return id ? `https://drive.google.com/file/d/${id}/preview` : url;
 }
-
 function toDownloadUrl(url) {
   const id = extractDriveId(url);
-  if (id) return `https://drive.google.com/uc?export=download&id=${id}`;
-  return url;
+  return id ? `https://drive.google.com/uc?export=download&id=${id}` : url;
 }
-
 function extractYoutubeId(url) {
   if (!url) return null;
   const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
@@ -83,15 +77,11 @@ function ItemRenderer({ item }) {
         className="w-full rounded-xl object-contain max-h-96"
         onError={e => { e.target.src = toPreviewUrl(url); }} />;
     case 'audio':
-      return (
-        <iframe src={toPreviewUrl(url)} className="w-full rounded-xl"
-          style={{ height: '80px', border: 'none' }} allow="autoplay" />
-      );
+      return <iframe src={toPreviewUrl(url)} className="w-full rounded-xl"
+        style={{ height: '80px', border: 'none' }} allow="autoplay" />;
     case 'pdf':
-      return (
-        <iframe src={toPreviewUrl(url)} className="w-full rounded-xl"
-          style={{ height: '500px', border: 'none' }} />
-      );
+      return <iframe src={toPreviewUrl(url)} className="w-full rounded-xl"
+        style={{ height: '500px', border: 'none' }} />;
     case 'link':
       return <a href={url} target="_blank" rel="noopener noreferrer"
         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
@@ -102,7 +92,7 @@ function ItemRenderer({ item }) {
       return <a href={toDownloadUrl(url)} target="_blank" rel="noopener noreferrer"
         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
         style={{ background: '#7c6af720', color: '#7c6af7', border: '1px solid #7c6af740' }}>
-        ⬇️ Descargar {item.file_name || 'archivo'}
+        ⌗ Descargar {item.file_name || 'archivo'}
       </a>;
     default: return null;
   }
@@ -110,25 +100,12 @@ function ItemRenderer({ item }) {
 
 function ItemForm({ contentId, item, onSave, onCancel }) {
   const [form, setForm] = useState(item || { title: '', type: 'text', value: '', file_url: '', file_name: '' });
-
   const needsYoutubeUrl = ['youtube', 'video'].includes(form.type);
   const needsLinkUrl = form.type === 'link';
   const needsDriveUrl = ['image', 'audio', 'pdf', 'file'].includes(form.type);
   const needsText = form.type === 'text';
-
-  const urlLabels = {
-    image: 'URL de imagen (Google Drive)',
-    audio: 'URL de audio (Google Drive)',
-    pdf: 'URL de PDF (Google Drive)',
-    file: 'URL de archivo (Google Drive)',
-  };
-
-  const urlPlaceholders = {
-    image: 'https://drive.google.com/file/d/...',
-    audio: 'https://drive.google.com/file/d/...',
-    pdf: 'https://drive.google.com/file/d/...',
-    file: 'https://drive.google.com/file/d/...',
-  };
+  const urlLabels = { image: 'URL de imagen (Google Drive)', audio: 'URL de audio (Google Drive)', pdf: 'URL de PDF (Google Drive)', file: 'URL de archivo (Google Drive)' };
+  const urlPlaceholders = { image: 'https://drive.google.com/file/d/...', audio: 'https://drive.google.com/file/d/...', pdf: 'https://drive.google.com/file/d/...', file: 'https://drive.google.com/file/d/...' };
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -167,37 +144,29 @@ function ItemForm({ contentId, item, onSave, onCancel }) {
           ))}
         </div>
       </div>
-
       {needsText && (
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Contenido</label>
           <RichTextEditor value={form.value} onChange={val => setForm(p => ({ ...p, value: val }))} />
         </div>
       )}
-
       {needsYoutubeUrl && (
-        <Input label="URL de YouTube" value={form.value}
-          placeholder="https://youtube.com/watch?v=..."
+        <Input label="URL de YouTube" value={form.value} placeholder="https://youtube.com/watch?v=..."
           onChange={e => setForm(p => ({ ...p, value: e.target.value }))} />
       )}
-
       {needsLinkUrl && (
-        <Input label="URL del enlace" value={form.value}
-          placeholder="https://..."
+        <Input label="URL del enlace" value={form.value} placeholder="https://..."
           onChange={e => setForm(p => ({ ...p, value: e.target.value }))} />
       )}
-
       {needsDriveUrl && (
         <div className="flex flex-col gap-2">
-          <Input label={urlLabels[form.type]} value={form.value}
-            placeholder={urlPlaceholders[form.type]}
+          <Input label={urlLabels[form.type]} value={form.value} placeholder={urlPlaceholders[form.type]}
             onChange={e => setForm(p => ({ ...p, value: e.target.value }))} />
           {form.type === 'file' && (
             <Input label="Nombre del archivo (opcional)" value={form.file_name}
               placeholder="ej: Partitura Lección 1.pdf"
               onChange={e => setForm(p => ({ ...p, file_name: e.target.value }))} />
           )}
-          {/* Vista previa */}
           {form.value && form.type === 'image' && (
             <div className="p-2 rounded-xl" style={{ background: '#1c1c26' }}>
               <p className="text-xs mb-2" style={{ color: '#5a5a70' }}>Vista previa:</p>
@@ -215,7 +184,6 @@ function ItemForm({ contentId, item, onSave, onCancel }) {
           )}
         </div>
       )}
-
       <div className="flex gap-2 pt-1">
         <Button type="submit" size="sm" className="flex-1">{item ? 'Guardar' : 'Agregar'}</Button>
         <Button type="button" size="sm" variant="secondary" onClick={onCancel}>Cancelar</Button>
@@ -238,19 +206,16 @@ function ContentBlock({ content, onReload }) {
     const data = await getItemsByContent(content.id);
     setItems(data);
   }
-
   async function handleExpand() {
     if (!expanded) await loadItems();
     setExpanded(p => !p);
   }
-
   async function handleDeleteItem(item) {
     if (!confirm(`¿Eliminar "${item.title || 'este ítem'}"?`)) return;
     await deleteItem(item.id);
     toast.success('Ítem eliminado');
     loadItems();
   }
-
   async function handleEditContent(e) {
     e.preventDefault();
     await updateContent(content.id, editForm);
@@ -258,7 +223,6 @@ function ContentBlock({ content, onReload }) {
     setShowEditContent(false);
     onReload();
   }
-
   async function handleDeleteContent() {
     if (!confirm(`¿Eliminar el contenido "${content.title}"?`)) return;
     const { error } = await supabase.from('contents').delete().eq('id', content.id);
@@ -266,15 +230,13 @@ function ContentBlock({ content, onReload }) {
     toast.success('Contenido eliminado');
     onReload();
   }
-
   function handleDragStart(index) { dragItem.current = index; }
   function handleDragEnter(index) { dragOver.current = index; }
   async function handleDragEnd() {
     const reordered = [...items];
     const dragged = reordered.splice(dragItem.current, 1)[0];
     reordered.splice(dragOver.current, 0, dragged);
-    dragItem.current = null;
-    dragOver.current = null;
+    dragItem.current = null; dragOver.current = null;
     setItems(reordered);
     await updateItemsOrder(reordered);
   }
@@ -296,7 +258,6 @@ function ContentBlock({ content, onReload }) {
           <Button size="sm" variant="danger" onClick={handleDeleteContent}><MdDelete /></Button>
         </div>
       </div>
-
       {expanded && (
         <div className="flex flex-col gap-2 p-4" style={{ background: '#12121a' }}>
           {items.map((item, index) => (
@@ -340,7 +301,6 @@ function ContentBlock({ content, onReload }) {
           )}
         </div>
       )}
-
       {showEditContent && (
         <Modal isOpen onClose={() => setShowEditContent(false)} title="Editar contenido">
           <form onSubmit={handleEditContent} className="flex flex-col gap-4">
@@ -368,7 +328,6 @@ function LessonContentModal({ lesson, onClose }) {
     const data = await getContentsByLesson(lesson.id);
     setContents(data);
   }
-
   useEffect(() => { loadContents(); }, [lesson.id]);
 
   async function handleAddContent(e) {
@@ -424,6 +383,8 @@ export default function AdminLessons() {
   const [showContents, setShowContents] = useState(false);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ title: '', description: '' });
+  const dragLesson = useRef(null);
+  const dragLessonOver = useRef(null);
 
   async function load() { setLessons(await getLessonsByCourse(courseId)); }
   useEffect(() => { load(); }, [courseId]);
@@ -436,7 +397,6 @@ export default function AdminLessons() {
     setForm({ title: '', description: '' });
     load();
   }
-
   async function handleEdit(e) {
     e.preventDefault();
     await updateLesson(selected.id, { title: selected.title, description: selected.description });
@@ -444,13 +404,24 @@ export default function AdminLessons() {
     setShowEdit(false);
     load();
   }
-
   async function handleDelete(lesson) {
     if (!confirm(`¿Eliminar "${lesson.title}"?`)) return;
     const { error } = await supabase.from('lessons').delete().eq('id', lesson.id);
     if (error) { toast.error('Error al eliminar lección'); return; }
     toast.success('Lección eliminada');
     load();
+  }
+
+  function handleDragStart(index) { dragLesson.current = index; }
+  function handleDragEnter(index) { dragLessonOver.current = index; }
+  async function handleDragEnd() {
+    const reordered = [...lessons];
+    const dragged = reordered.splice(dragLesson.current, 1)[0];
+    reordered.splice(dragLessonOver.current, 0, dragged);
+    dragLesson.current = null; dragLessonOver.current = null;
+    setLessons(reordered);
+    await updateLessonsOrder(reordered);
+    toast.success('Orden guardado');
   }
 
   return (
@@ -464,47 +435,54 @@ export default function AdminLessons() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-display font-bold text-2xl text-white">Lecciones</h1>
-          <p className="text-sm mt-1" style={{ color: '#5a5a70' }}>{lessons.length} lecciones</p>
+          <p className="text-sm mt-1" style={{ color: '#5a5a70' }}>{lessons.length} lecciones · Arrastra para reordenar</p>
         </div>
         <Button onClick={() => setShowCreate(true)}><MdAdd /> Nueva lección</Button>
       </div>
 
       <div className="flex flex-col gap-3">
-        {lessons.map(lesson => (
-          <Card key={lesson.id}>
-            <div className="flex items-center gap-4">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
-                style={{ background: '#7c6af720', color: '#7c6af7' }}>
-                {lesson.sort_order}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-white">{lesson.title}</h3>
-                  <Badge status={lesson.status} />
+        {lessons.map((lesson, index) => (
+          <div key={lesson.id} draggable
+            onDragStart={() => handleDragStart(index)}
+            onDragEnter={() => handleDragEnter(index)}
+            onDragEnd={handleDragEnd}
+            onDragOver={e => e.preventDefault()}>
+            <Card>
+              <div className="flex items-center gap-4">
+                <MdDragIndicator className="cursor-grab flex-shrink-0" style={{ color: '#5a5a70' }} size={20} />
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
+                  style={{ background: '#7c6af720', color: '#7c6af7' }}>
+                  {index + 1}
                 </div>
-                {lesson.description && (
-                  <p className="text-xs mt-0.5" style={{ color: '#5a5a70' }}>{lesson.description}</p>
-                )}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium text-white">{lesson.title}</h3>
+                    <Badge status={lesson.status} />
+                  </div>
+                  {lesson.description && (
+                    <p className="text-xs mt-0.5" style={{ color: '#5a5a70' }}>{lesson.description}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="secondary"
+                    onClick={() => { setSelected({...lesson}); setShowEdit(true); }}>
+                    <MdEdit />
+                  </Button>
+                  <Button size="sm" variant={lesson.status === 'active' ? 'danger' : 'secondary'}
+                    onClick={async () => { await toggleLessonStatus(lesson.id, lesson.status); toast.success('Estado actualizado'); load(); }}>
+                    {lesson.status === 'active' ? 'Desactivar' : 'Activar'}
+                  </Button>
+                  <Button size="sm" variant="secondary"
+                    onClick={() => { setSelected(lesson); setShowContents(true); }}>
+                    📋 Gestionar contenido
+                  </Button>
+                  <Button size="sm" variant="danger" onClick={() => handleDelete(lesson)}>
+                    <MdDelete />
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="secondary"
-                  onClick={() => { setSelected({...lesson}); setShowEdit(true); }}>
-                  <MdEdit />
-                </Button>
-                <Button size="sm" variant={lesson.status === 'active' ? 'danger' : 'secondary'}
-                  onClick={async () => { await toggleLessonStatus(lesson.id, lesson.status); toast.success('Estado actualizado'); load(); }}>
-                  {lesson.status === 'active' ? 'Desactivar' : 'Activar'}
-                </Button>
-                <Button size="sm" variant="secondary"
-                  onClick={() => { setSelected(lesson); setShowContents(true); }}>
-                  📋 Gestionar contenido
-                </Button>
-                <Button size="sm" variant="danger" onClick={() => handleDelete(lesson)}>
-                  <MdDelete />
-                </Button>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
         ))}
         {lessons.length === 0 && (
           <Card><p className="text-center py-8" style={{ color: '#5a5a70' }}>Sin lecciones. ¡Crea la primera!</p></Card>

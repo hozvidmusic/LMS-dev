@@ -109,3 +109,10 @@ export async function updateItemsOrder(items) {
   );
   await Promise.all(updates);
 }
+
+export async function updateLessonsOrder(lessons) {
+  const updates = lessons.map((lesson, index) =>
+    supabase.from('lessons').update({ sort_order: index + 1 }).eq('id', lesson.id)
+  );
+  await Promise.all(updates);
+}
