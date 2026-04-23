@@ -38,6 +38,16 @@ export async function getEventsForStudent(userId) {
   });
 }
 
+export async function getEventRatings(eventId) {
+  const { data, error } = await supabaseAdmin
+    .from('event_ratings')
+    .select('*, profiles(display_name)')
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
 export async function createEvent({ title, description, type, starts_at, ends_at, target, group_id, subgroup_id, created_by }) {
   const { data, error } = await supabaseAdmin
     .from('calendar_events')

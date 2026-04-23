@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useCalendar } from '@/context/CalendarContext';
 import { getEventsForStudent, rateEvent } from '@/services/calendarService';
 import Card from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
@@ -21,7 +22,7 @@ function StarRating({ value, onChange }) {
           onMouseEnter={() => setHover(star)}
           onMouseLeave={() => setHover(0)}
           onClick={() => onChange(star)}
-          className="text-3xl transition-all"
+          className="text-4xl transition-all"
           style={{ color: star <= (hover || value) ? '#fbbf24' : '#2a2a38' }}>
           ★
         </button>
@@ -39,6 +40,7 @@ function formatTime(d) {
 
 export default function CalendarPage() {
   const { profile } = useAuth();
+  const { refresh } = useCalendar();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pendingRatings, setPendingRatings] = useState([]);
@@ -50,20 +52,13 @@ export default function CalendarPage() {
     if (!profile) return;
     const data = await getEventsForStudent(profile.id);
     const now = new Date();
-
-    // Eventos futuros
-    const future = data.filter(e => new Date(e.starts_at) > now);
-    setEvents(future);
-
-    // Eventos pasados sin calificar
+    setEvents(data.filter(e => new Date(e.starts_at) > now));
     const past = data.filter(e => {
       const isPast = new Date(e.starts_at) <= now;
       const alreadyRated = e.event_ratings?.some(r => r.user_id === profile.id);
       return isPast && !alreadyRated;
     });
     setPendingRatings(past);
-
-    // Mostrar modal del primer evento pendiente
     if (past.length > 0) {
       setCurrentRating(past[0]);
       setRatingValue(0);
@@ -88,6 +83,7 @@ export default function CalendarPage() {
         setShowRatingModal(false);
         setCurrentRating(null);
       }
+      await refresh(); // Actualiza badge del sidebar
     } catch { toast.error('Error al guardar evaluación'); }
   }
 
@@ -103,7 +99,6 @@ export default function CalendarPage() {
     }
   }
 
-  // Agrupar por fecha
   const grouped = events.reduce((acc, ev) => {
     const date = new Date(ev.starts_at).toDateString();
     if (!acc[date]) acc[date] = [];
@@ -134,7 +129,7 @@ export default function CalendarPage() {
                   {dayEvents.map(ev => (
                     <Card key={ev.id}>
                       <div className="flex items-start gap-3">
-                        <div className="w-1 h-full rounded-full flex-shrink-0 self-stretch"
+                        <div className="w-1 rounded-full flex-shrink-0 self-stretch"
                           style={{ background: TYPE_CONFIG[ev.type]?.color || '#7c6af7', minHeight: '40px' }} />
                         <div className="flex-1">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -156,7 +151,6 @@ export default function CalendarPage() {
         )
       )}
 
-      {/* Modal evaluación */}
       {currentRating && (
         <Modal isOpen={showRatingModal} onClose={handleSkip} title="¿Cómo estuvo la clase?">
           <div className="flex flex-col gap-4 text-center">
@@ -164,9 +158,7 @@ export default function CalendarPage() {
               <p className="font-semibold text-white mb-1">{currentRating.title}</p>
               <p className="text-sm" style={{ color: '#5a5a70' }}>{formatDate(currentRating.starts_at)}</p>
             </div>
-            <p className="text-sm" style={{ color: '#9090a8' }}>
-              Califica tu experiencia del 1 al 5 estrellas
-            </p>
+            <p className="text-sm" style={{ color: '#9090a8' }}>Califica tu experiencia del 1 al 5 estrellas</p>
             <StarRating value={ratingValue} onChange={setRatingValue} />
             {pendingRatings.length > 1 && (
               <p className="text-xs" style={{ color: '#5a5a70' }}>

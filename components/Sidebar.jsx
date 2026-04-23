@@ -6,10 +6,11 @@ import { logout } from '@/services/authService';
 import { useEffect, useState } from 'react';
 import { getCourses, getLessonsByCourse } from '@/services/courseService';
 import { useAnnouncements } from '@/context/AnnouncementsContext';
+import { useCalendar } from '@/context/CalendarContext';
 import { supabase } from '@/supabase/client';
 import toast from 'react-hot-toast';
 import {
-  MdDashboard, MdLibraryMusic, MdMenuBook, MdAnnouncement,
+  MdDashboard, MdLibraryMusic, MdMenuBook,
   MdLibraryBooks, MdPerson, MdPeople, MdSchool, MdLogout,
   MdCheckCircle, MdRadioButtonUnchecked, MdChevronLeft,
   MdAssignment, MdExpandMore, MdExpandLess, MdVisibility, MdEvent
@@ -149,7 +150,7 @@ function LessonSidebar({ courseId, lessonId, profile, onLogout, onClose }) {
   );
 }
 
-function NavItem({ href, icon, label, onClose, badge }) {
+function NavItem({ href, icon, label, onClose, announceBadge, calendarBadge }) {
   const pathname = usePathname();
   const isActive = pathname === href || pathname.startsWith(href + '/');
   return (
@@ -157,23 +158,34 @@ function NavItem({ href, icon, label, onClose, badge }) {
       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
         isActive ? 'bg-[#7c6af720] text-[#7c6af7]' : 'text-[#9090a8] hover:text-white hover:bg-[#22222e]'
       }`}>
-      {icon}
+      <span className="relative flex-shrink-0">
+        {icon}
+        {/* Badge periódico para anuncios */}
+        {announceBadge > 0 && (
+          <span className="absolute -top-2 -right-2 text-xs font-bold leading-none"
+            style={{ color: '#f75c6a' }}>
+            📰{announceBadge > 9 ? '9+' : announceBadge}
+          </span>
+        )}
+        {/* Badge campanita para calendario */}
+        {calendarBadge > 0 && (
+          <span className="absolute -top-2 -right-2 text-xs font-bold leading-none"
+            style={{ color: '#fbbf24' }}>
+            🔔{calendarBadge > 9 ? '9+' : calendarBadge}
+          </span>
+        )}
+      </span>
       <span className="flex-1">{label}</span>
-      {badge > 0 && (
-        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center"
-          style={{ background: '#f75c6a', color: 'white' }}>
-          {badge > 9 ? '9+' : badge}
-        </span>
-      )}
     </Link>
   );
 }
 
-function StudentViewMenu({ onClose, unreadCount }) {
+function StudentViewMenu({ onClose, unreadCount, pendingRatings }) {
   const pathname = usePathname();
-  const studentPaths = ['/courses', '/profile', '/resources', '/glossary', '/announcements'];
+  const studentPaths = ['/courses', '/profile', '/resources', '/glossary', '/announcements', '/calendar'];
   const isAnyActive = studentPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
   const [open, setOpen] = useState(isAnyActive);
+  const totalPending = unreadCount + pendingRatings;
 
   return (
     <div>
@@ -187,10 +199,10 @@ function StudentViewMenu({ onClose, unreadCount }) {
         onMouseLeave={e => { if (!isAnyActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9090a8'; } }}>
         <MdVisibility className="text-lg flex-shrink-0" />
         <span className="flex-1 text-left">Vista de alumno</span>
-        {unreadCount > 0 && (
+        {totalPending > 0 && (
           <span className="text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center mr-1"
-            style={{ background: '#f75c6a', color: 'white' }}>
-            {unreadCount > 9 ? '9+' : unreadCount}
+            style={{ background: '#7c6af7', color: 'white' }}>
+            {totalPending > 9 ? '9+' : totalPending}
           </span>
         )}
         {open ? <MdExpandLess className="text-lg" /> : <MdExpandMore className="text-lg" />}
@@ -201,8 +213,8 @@ function StudentViewMenu({ onClose, unreadCount }) {
           <NavItem href="/profile" icon={<MdPerson className="text-lg" />} label="Mi Perfil" onClose={onClose} />
           <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
           <NavItem href="/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
-          <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} badge={unreadCount} />
-          <NavItem href="/calendar" icon={<MdEvent className="text-lg" />} label="Calendario" onClose={onClose} />
+          <NavItem href="/announcements" icon={<MdEvent className="text-lg" />} label="Anuncios" onClose={onClose} announceBadge={unreadCount} />
+          <NavItem href="/calendar" icon={<MdEvent className="text-lg" />} label="Calendario" onClose={onClose} calendarBadge={pendingRatings} />
         </div>
       )}
     </div>
@@ -212,6 +224,7 @@ function StudentViewMenu({ onClose, unreadCount }) {
 function SidebarContent({ profile, onLogout, onClose }) {
   const isAdmin = profile?.role === 'admin';
   const { unreadCount } = useAnnouncements();
+  const { pendingRatings } = useCalendar();
 
   return (
     <div className="flex flex-col h-full p-4">
@@ -225,7 +238,7 @@ function SidebarContent({ profile, onLogout, onClose }) {
 
         {isAdmin ? (
           <>
-            <StudentViewMenu onClose={onClose} unreadCount={unreadCount} />
+            <StudentViewMenu onClose={onClose} unreadCount={unreadCount} pendingRatings={pendingRatings} />
             <div className="mt-4 mb-2 px-3">
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#5a5a70' }}>
                 Administración
@@ -236,7 +249,7 @@ function SidebarContent({ profile, onLogout, onClose }) {
             <NavItem href="/admin/courses" icon={<MdSchool className="text-lg" />} label="Cursos" onClose={onClose} />
             <NavItem href="/admin/resources" icon={<MdLibraryMusic className="text-lg" />} label="Recursos" onClose={onClose} />
             <NavItem href="/admin/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
-            <NavItem href="/admin/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} />
+            <NavItem href="/admin/announcements" icon={<MdEvent className="text-lg" />} label="Anuncios" onClose={onClose} />
             <NavItem href="/admin/calendar" icon={<MdEvent className="text-lg" />} label="Calendario" onClose={onClose} />
           </>
         ) : (
@@ -245,8 +258,8 @@ function SidebarContent({ profile, onLogout, onClose }) {
             <NavItem href="/profile" icon={<MdPerson className="text-lg" />} label="Mi Perfil" onClose={onClose} />
             <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
             <NavItem href="/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
-            <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} badge={unreadCount} />
-          <NavItem href="/calendar" icon={<MdEvent className="text-lg" />} label="Calendario" onClose={onClose} />
+            <NavItem href="/announcements" icon={<MdEvent className="text-lg" />} label="Anuncios" onClose={onClose} announceBadge={unreadCount} />
+            <NavItem href="/calendar" icon={<MdEvent className="text-lg" />} label="Calendario" onClose={onClose} calendarBadge={pendingRatings} />
           </>
         )}
       </nav>
