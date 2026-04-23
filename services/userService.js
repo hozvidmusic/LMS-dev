@@ -1,7 +1,13 @@
 import { supabase } from '@/supabase/client';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_KEY
+);
 
 export async function getAllStudents() {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('profiles').select('*').eq('role', 'student').order('created_at', { ascending: false });
   if (error) throw error;
   return data;
