@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { getCourses, getLessonsByCourse } from '@/services/courseService';
 import { supabase } from '@/supabase/client';
 import toast from 'react-hot-toast';
-import { MdDashboard, MdLibraryBooks, MdPerson, MdPeople, MdSchool, MdLogout, MdCheckCircle, MdRadioButtonUnchecked, MdChevronLeft, MdAssignment } from 'react-icons/md';
+import { MdDashboard, MdLibraryMusic, MdLibraryBooks, MdPerson, MdPeople, MdSchool, MdLogout, MdCheckCircle, MdRadioButtonUnchecked, MdChevronLeft, MdAssignment } from 'react-icons/md';
 import Image from 'next/image';
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -180,6 +180,7 @@ function SidebarContent({ profile, onLogout, onClose }) {
         <NavItem href="/dashboard" icon={<MdDashboard className="text-lg" />} label="Dashboard" onClose={onClose} />
         <NavItem href="/courses" icon={<MdLibraryBooks className="text-lg" />} label="Mis Cursos" onClose={onClose} />
         <NavItem href="/profile" icon={<MdPerson className="text-lg" />} label="Mi Perfil" onClose={onClose} />
+        <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
         {isAdmin && (
           <>
             <div className="mt-6 mb-2 px-3">
@@ -191,6 +192,7 @@ function SidebarContent({ profile, onLogout, onClose }) {
             
             <NavItem href="/admin/assignments" icon={<MdAssignment className="text-lg" />} label="Asignaciones" onClose={onClose} />
             <NavItem href="/admin/courses" icon={<MdSchool className="text-lg" />} label="Cursos" onClose={onClose} />
+            <NavItem href="/admin/resources" icon={<MdLibraryMusic className="text-lg" />} label="Recursos" onClose={onClose} />
           </>
         )}
       </nav>
