@@ -7,7 +7,12 @@ import { useEffect, useState } from 'react';
 import { getCourses, getLessonsByCourse } from '@/services/courseService';
 import { supabase } from '@/supabase/client';
 import toast from 'react-hot-toast';
-import { MdDashboard, MdLibraryMusic, MdMenuBook, MdAnnouncement, MdLibraryBooks, MdPerson, MdPeople, MdSchool, MdLogout, MdCheckCircle, MdRadioButtonUnchecked, MdChevronLeft, MdAssignment } from 'react-icons/md';
+import {
+  MdDashboard, MdLibraryMusic, MdMenuBook, MdAnnouncement,
+  MdLibraryBooks, MdPerson, MdPeople, MdSchool, MdLogout,
+  MdCheckCircle, MdRadioButtonUnchecked, MdChevronLeft,
+  MdAssignment, MdExpandMore, MdExpandLess, MdVisibility
+} from 'react-icons/md';
 import Image from 'next/image';
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -16,12 +21,8 @@ export default function Sidebar({ isOpen, onClose }) {
   const pathname = usePathname();
 
   async function handleLogout() {
-    try {
-      await logout();
-      router.push('/login');
-    } catch {
-      toast.error('Error al cerrar sesión');
-    }
+    try { await logout(); router.push('/login'); }
+    catch { toast.error('Error al cerrar sesión'); }
   }
 
   const sidebarStyle = {
@@ -31,7 +32,6 @@ export default function Sidebar({ isOpen, onClose }) {
     flexShrink: 0,
   };
 
-  // Detectar si estamos dentro de una lección
   const lessonMatch = pathname.match(/^\/courses\/([^/]+)\/lessons\/([^/]+)/);
   const isInLesson = !!lessonMatch;
   const activeCourseId = lessonMatch?.[1];
@@ -71,10 +71,8 @@ function LessonSidebar({ courseId, lessonId, profile, onLogout, onClose }) {
       setLessons(allLessons.filter(l => l.status === 'active'));
       if (profile) {
         const { data } = await supabase
-          .from('lesson_progress')
-          .select('lesson_id')
-          .eq('user_id', profile.id)
-          .eq('completed', true);
+          .from('lesson_progress').select('lesson_id')
+          .eq('user_id', profile.id).eq('completed', true);
         setCompleted((data || []).map(d => d.lesson_id));
       }
     }
@@ -89,7 +87,6 @@ function LessonSidebar({ courseId, lessonId, profile, onLogout, onClose }) {
         <Image src="/logo.png" alt="Hozvid Academy" width={48} height={48} />
         <span className="font-display font-bold text-white text-sm mt-1">Hozvid Academy</span>
       </div>
-
       <button onClick={() => { router.push('/courses'); onClose?.(); }}
         className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium mb-4 transition-all w-full"
         style={{ color: '#9090a8', background: '#22222e' }}
@@ -97,15 +94,12 @@ function LessonSidebar({ courseId, lessonId, profile, onLogout, onClose }) {
         onMouseLeave={e => { e.currentTarget.style.color = '#9090a8'; e.currentTarget.style.background = '#22222e'; }}>
         <MdChevronLeft /> Mis Cursos
       </button>
-
       {course && (
-        <div className="flex items-center gap-2 mb-4 p-3 rounded-xl"
-          style={{ background: color + '15' }}>
+        <div className="flex items-center gap-2 mb-4 p-3 rounded-xl" style={{ background: color + '15' }}>
           <span className="text-xl">{course.icon || '🎵'}</span>
           <span className="text-sm font-semibold text-white leading-tight">{course.title}</span>
         </div>
       )}
-
       <nav className="flex flex-col gap-1 flex-1 overflow-y-auto">
         {lessons.map(l => {
           const isDone = completed.includes(l.id);
@@ -132,7 +126,6 @@ function LessonSidebar({ courseId, lessonId, profile, onLogout, onClose }) {
           );
         })}
       </nav>
-
       <div className="mt-auto pt-4" style={{ borderTop: '1px solid #2a2a38' }}>
         <div className="flex items-center gap-3 px-3 py-2 mb-2">
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
@@ -168,39 +161,78 @@ function NavItem({ href, icon, label, onClose }) {
   );
 }
 
+function StudentViewMenu({ onClose }) {
+  const pathname = usePathname();
+  const studentPaths = ['/courses', '/profile', '/resources', '/glossary', '/announcements'];
+  const isAnyActive = studentPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
+  const [open, setOpen] = useState(isAnyActive);
+
+  return (
+    <div>
+      <button onClick={() => setOpen(p => !p)}
+        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all w-full"
+        style={{
+          background: isAnyActive ? '#7c6af710' : 'transparent',
+          color: isAnyActive ? '#7c6af7' : '#9090a8',
+        }}
+        onMouseEnter={e => { if (!isAnyActive) e.currentTarget.style.background = '#22222e'; e.currentTarget.style.color = '#e8e8f0'; }}
+        onMouseLeave={e => { if (!isAnyActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9090a8'; } }}>
+        <MdVisibility className="text-lg flex-shrink-0" />
+        <span className="flex-1 text-left">Vista de alumno</span>
+        {open ? <MdExpandLess className="text-lg" /> : <MdExpandMore className="text-lg" />}
+      </button>
+      {open && (
+        <div className="ml-3 mt-1 flex flex-col gap-1 pl-3" style={{ borderLeft: '1px solid #2a2a38' }}>
+          <NavItem href="/courses" icon={<MdLibraryBooks className="text-lg" />} label="Mis Cursos" onClose={onClose} />
+          <NavItem href="/profile" icon={<MdPerson className="text-lg" />} label="Mi Perfil" onClose={onClose} />
+          <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
+          <NavItem href="/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
+          <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SidebarContent({ profile, onLogout, onClose }) {
   const isAdmin = profile?.role === 'admin';
   return (
     <div className="flex flex-col h-full p-4">
-      <div className="flex flex-col items-center px-3 py-4 mb-6">
+      <div className="flex flex-col items-center px-3 py-4 mb-4">
         <Image src="/logo.png" alt="Hozvid Academy" width={48} height={48} />
         <span className="font-display font-bold text-white text-sm mt-1">Hozvid Academy</span>
       </div>
-      <nav className="flex flex-col gap-1 flex-1">
+
+      <nav className="flex flex-col gap-1 flex-1 overflow-y-auto pr-1">
         <NavItem href="/dashboard" icon={<MdDashboard className="text-lg" />} label="Dashboard" onClose={onClose} />
-        <NavItem href="/courses" icon={<MdLibraryBooks className="text-lg" />} label="Mis Cursos" onClose={onClose} />
-        <NavItem href="/profile" icon={<MdPerson className="text-lg" />} label="Mi Perfil" onClose={onClose} />
-        <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
-        <NavItem href="/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
-        <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} />
-        {isAdmin && (
+
+        {isAdmin ? (
           <>
-            <div className="mt-6 mb-2 px-3">
+            <StudentViewMenu onClose={onClose} />
+            <div className="mt-4 mb-2 px-3">
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#5a5a70' }}>
                 Administración
               </span>
             </div>
             <NavItem href="/admin/students" icon={<MdPeople className="text-lg" />} label="Alumnos" onClose={onClose} />
-            
             <NavItem href="/admin/assignments" icon={<MdAssignment className="text-lg" />} label="Asignaciones" onClose={onClose} />
             <NavItem href="/admin/courses" icon={<MdSchool className="text-lg" />} label="Cursos" onClose={onClose} />
             <NavItem href="/admin/resources" icon={<MdLibraryMusic className="text-lg" />} label="Recursos" onClose={onClose} />
             <NavItem href="/admin/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
             <NavItem href="/admin/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} />
           </>
+        ) : (
+          <>
+            <NavItem href="/courses" icon={<MdLibraryBooks className="text-lg" />} label="Mis Cursos" onClose={onClose} />
+            <NavItem href="/profile" icon={<MdPerson className="text-lg" />} label="Mi Perfil" onClose={onClose} />
+            <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
+            <NavItem href="/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
+            <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} />
+          </>
         )}
       </nav>
-      <div className="mt-auto pt-4" style={{ borderTop: '1px solid #2a2a38' }}>
+
+      <div className="pt-4 mt-2" style={{ borderTop: '1px solid #2a2a38' }}>
         <div className="flex items-center gap-3 px-3 py-2 mb-2">
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
             style={{ background: '#7c6af720', color: '#7c6af7' }}>
