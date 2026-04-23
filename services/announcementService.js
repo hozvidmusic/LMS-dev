@@ -32,7 +32,6 @@ export async function getAnnouncementsForStudent(userId) {
   if (error) throw error;
 
   return data.filter(a => {
-    // Filtrar expirados
     if (a.expires_at && a.expires_at < now) return false;
     if (a.target === 'all') return true;
     if (a.target === 'group' && a.group_id === groupId) return true;
@@ -46,14 +45,13 @@ export async function getUnreadCountForStudent(userId) {
   return announcements.filter(a => !a.read_by?.includes(userId)).length;
 }
 
-export async function markAllAsRead(userId) {
-  const announcements = await getAnnouncementsForStudent(userId);
-  const unread = announcements.filter(a => !a.read_by?.includes(userId));
-  await Promise.all(unread.map(a =>
-    supabaseAdmin.from('announcements').update({
-      read_by: [...(a.read_by || []), userId]
-    }).eq('id', a.id)
-  ));
+export async function markAsRead(announcementId, userId, currentReadBy) {
+  if (currentReadBy?.includes(userId)) return;
+  const { error } = await supabaseAdmin
+    .from('announcements')
+    .update({ read_by: [...(currentReadBy || []), userId] })
+    .eq('id', announcementId);
+  if (error) throw error;
 }
 
 export async function createAnnouncement({ title, body, target, group_id, subgroup_id, created_by, expires_at }) {
