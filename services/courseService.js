@@ -116,3 +116,125 @@ export async function updateLessonsOrder(lessons) {
   );
   await Promise.all(updates);
 }
+
+export async function duplicateCourse(courseId) {
+  // Obtener curso original
+  const { data: course, error: ce } = await supabase
+    .from('courses').select('*').eq('id', courseId).single();
+  if (ce) throw ce;
+
+  // Contar cursos existentes para sort_order
+  const { data: existing } = await supabase.from('courses').select('id');
+  const sort_order = (existing?.length || 0) + 1;
+
+  // Crear nuevo curso
+  const { data: newCourse, error: nce } = await supabase.from('courses').insert({
+    title: `${course.title} (copia)`,
+    description: course.description,
+    color: course.color,
+    icon: course.icon,
+    sort_order,
+  }).select().single();
+  if (nce) throw nce;
+
+  // Duplicar instrumento si existe
+  const { data: inst } = await supabase
+    .from('course_instrument').select('instrument').eq('course_id', courseId).single();
+  if (inst?.instrument) {
+    await supabase.from('course_instrument').insert({
+      course_id: newCourse.id,
+      instrument: inst.instrument,
+    });
+  }
+
+  // Obtener lecciones del curso original
+  const { data: lessons } = await supabase
+    .from('lessons').select('*').eq('course_id', courseId).order('sort_order', { ascending: true });
+
+  for (const lesson of (lessons || [])) {
+    const { data: newLesson } = await supabase.from('lessons').insert({
+      course_id: newCourse.id,
+      title: lesson.title,
+      description: lesson.description,
+      sort_order: lesson.sort_order,
+      status: lesson.status,
+    }).select().single();
+
+    // Obtener contenidos de la lección
+    const { data: contents } = await supabase
+      .from('contents').select('*').eq('lesson_id', lesson.id).order('sort_order', { ascending: true });
+
+    for (const content of (contents || [])) {
+      const { data: newContent } = await supabase.from('contents').insert({
+        lesson_id: newLesson.id,
+        title: content.title,
+        description: content.description,
+        sort_order: content.sort_order,
+        status: content.status,
+      }).select().single();
+
+      // Obtener ítems del contenido
+      const { data: items } = await supabase
+        .from('items').select('*').eq('content_id', content.id).order('sort_order', { ascending: true });
+
+      for (const item of (items || [])) {
+        await supabase.from('items').insert({
+          content_id: newContent.id,
+          title: item.title,
+          type: item.type,
+          value: item.value,
+          file_url: item.file_url,
+          file_name: item.file_name,
+          sort_order: item.sort_order,
+        });
+      }
+    }
+  }
+  return newCourse;
+}
+
+export async function duplicateLesson(lessonId, courseId) {
+  const { data: lesson, error: le } = await supabase
+    .from('lessons').select('*').eq('id', lessonId).single();
+  if (le) throw le;
+
+  const { data: existing } = await supabase.from('lessons').select('id').eq('course_id', courseId);
+  const sort_order = (existing?.length || 0) + 1;
+
+  const { data: newLesson } = await supabase.from('lessons').insert({
+    course_id: courseId,
+    title: `${lesson.title} (copia)`,
+    description: lesson.description,
+    sort_order,
+    status: lesson.status,
+  }).select().single();
+
+  const { data: contents } = await supabase
+    .from('contents').select('*').eq('lesson_id', lessonId).order('sort_order', { ascending: true });
+
+  for (const content of (contents || [])) {
+    const { data: newContent } = await supabase.from('contents').insert({
+      lesson_id: newLesson.id,
+      title: content.title,
+      description: content.description,
+      sort_order: content.sort_order,
+      status: content.status,
+    }).select().single();
+
+    const { data: items } = await supabase
+      .from('items').select('*').eq('content_id', content.id).order('sort_order', { ascending: true });
+
+    for (const item of (items || [])) {
+      await supabase.from('items').insert({
+        content_id: newContent.id,
+        title: item.title,
+        type: item.type,
+        value: item.value,
+        file_url: item.file_url,
+        file_name: item.file_name,
+        sort_order: item.sort_order,
+      });
+    }
+  }
+  return newLesson;
+}

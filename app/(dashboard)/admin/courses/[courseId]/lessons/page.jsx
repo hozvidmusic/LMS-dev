@@ -15,7 +15,7 @@ import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import toast from 'react-hot-toast';
-import { MdAdd, MdEdit, MdChevronLeft, MdDelete, MdExpandMore, MdExpandLess, MdDragIndicator } from 'react-icons/md';
+import { MdAdd, MdEdit, MdChevronLeft, MdDelete, MdExpandMore, MdExpandLess, MdDragIndicator, MdCopyAll } from 'react-icons/md';
 
 const ITEM_TYPES = [
   { value: 'text', label: '📝 Texto' },

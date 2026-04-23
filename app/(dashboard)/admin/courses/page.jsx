@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCourses, createCourse, updateCourse, toggleCourseStatus } from '@/services/courseService';
+import { getCourses, createCourse, updateCourse, toggleCourseStatus, duplicateCourse } from '@/services/courseService';
 import { supabase } from '@/supabase/client';
 import { createClient } from '@supabase/supabase-js';
 import Card from '@/components/ui/Card';
@@ -10,7 +10,7 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import toast from 'react-hot-toast';
-import { MdAdd, MdEdit, MdChevronRight, MdDelete } from 'react-icons/md';
+import { MdAdd, MdEdit, MdChevronRight, MdDelete, MdCopyAll } from 'react-icons/md';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -41,21 +41,15 @@ function ColorPicker({ value, onChange }) {
         {PRESET_COLORS.map(c => (
           <button key={c} type="button" onClick={() => onChange(c)}
             className="w-7 h-7 rounded-full transition-all"
-            style={{
-              background: c,
-              outline: value === c ? '3px solid white' : '3px solid transparent',
-              outlineOffset: '2px',
-            }} />
+            style={{ background: c, outline: value === c ? '3px solid white' : '3px solid transparent', outlineOffset: '2px' }} />
         ))}
       </div>
       <div className="flex items-center gap-3">
         <input type="color" value={value || '#7c6af7'} onChange={e => onChange(e.target.value)}
-          className="w-10 h-10 rounded-lg cursor-pointer border-0 p-0.5"
-          style={{ background: '#0f0f13' }} />
+          className="w-10 h-10 rounded-lg cursor-pointer border-0 p-0.5" style={{ background: '#0f0f13' }} />
         <input type="text" value={value || '#7c6af7'} onChange={e => onChange(e.target.value)}
           className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
-          style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }}
-          placeholder="#7c6af7" />
+          style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} placeholder="#7c6af7" />
         <div className="w-10 h-10 rounded-xl" style={{ background: value || '#7c6af7' }} />
       </div>
     </div>
@@ -130,12 +124,7 @@ export default function AdminCourses() {
 
   async function handleEdit(e) {
     e.preventDefault();
-    await updateCourse(selected.id, {
-      title: selected.title,
-      description: selected.description,
-      color: selected.color,
-      icon: selected.icon,
-    });
+    await updateCourse(selected.id, { title: selected.title, description: selected.description, color: selected.color, icon: selected.icon });
     if (selected.instrument !== undefined) await saveInstrument(selected.id, selected.instrument);
     toast.success('Curso actualizado');
     setShowEdit(false);
@@ -160,6 +149,17 @@ export default function AdminCourses() {
     if (error) { toast.error('Error al eliminar curso'); return; }
     toast.success('Curso eliminado');
     load();
+  }
+
+  async function handleDuplicate(course) {
+    const t = toast.loading('Duplicando curso...');
+    try {
+      await duplicateCourse(course.id);
+      toast.success('Curso duplicado', { id: t });
+      load();
+    } catch {
+      toast.error('Error al duplicar', { id: t });
+    }
   }
 
   const getInstrumentLabel = (courseId) => {
@@ -208,9 +208,8 @@ export default function AdminCourses() {
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap justify-end">
-                <Button size="sm" variant="secondary" onClick={() => handleOpenEdit(course)}>
-                  <MdEdit />
-                </Button>
+                <Button size="sm" variant="secondary" onClick={() => handleOpenEdit(course)}><MdEdit /></Button>
+                <Button size="sm" variant="secondary" onClick={() => handleDuplicate(course)}><MdCopyAll /></Button>
                 <Button size="sm" variant={course.status === 'active' ? 'danger' : 'secondary'}
                   onClick={() => handleToggle(course)}>
                   {course.status === 'active' ? 'Desactivar' : 'Activar'}
@@ -219,24 +218,20 @@ export default function AdminCourses() {
                   onClick={() => router.push(`/admin/courses/${course.id}/lessons`)}>
                   Lecciones <MdChevronRight />
                 </Button>
-                <Button size="sm" variant="danger" onClick={() => handleDelete(course)}>
-                  <MdDelete />
-                </Button>
+                <Button size="sm" variant="danger" onClick={() => handleDelete(course)}><MdDelete /></Button>
               </div>
             </div>
           </Card>
         ))}
       </div>
 
-      {/* Modal crear */}
       <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Nuevo curso">
         <form onSubmit={handleCreate} className="flex flex-col gap-4">
           <Input label="Título del curso" value={form.title} required
             onChange={e => setForm(p => ({...p, title: e.target.value}))} />
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Descripción</label>
-            <textarea value={form.description}
-              onChange={e => setForm(p => ({...p, description: e.target.value}))}
+            <textarea value={form.description} onChange={e => setForm(p => ({...p, description: e.target.value}))}
               rows={3} className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
               style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
           </div>
@@ -244,11 +239,8 @@ export default function AdminCourses() {
             <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Emoji / Ícono</label>
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-                style={{ background: (form.color || '#7c6af7') + '30' }}>
-                {form.icon || '🎵'}
-              </div>
-              <input type="text" value={form.icon}
-                onChange={e => setForm(p => ({...p, icon: e.target.value}))}
+                style={{ background: (form.color || '#7c6af7') + '30' }}>{form.icon || '🎵'}</div>
+              <input type="text" value={form.icon} onChange={e => setForm(p => ({...p, icon: e.target.value}))}
                 className="flex-1 px-4 py-2.5 rounded-xl text-sm outline-none"
                 style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }}
                 placeholder="Escribe un emoji, ej: 🎹 🥁 🎸" />
@@ -263,7 +255,6 @@ export default function AdminCourses() {
         </form>
       </Modal>
 
-      {/* Modal editar */}
       {selected && (
         <Modal isOpen={showEdit} onClose={() => setShowEdit(false)} title="Editar curso">
           <form onSubmit={handleEdit} className="flex flex-col gap-4">
@@ -271,8 +262,7 @@ export default function AdminCourses() {
               onChange={e => setSelected(p => ({...p, title: e.target.value}))} />
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Descripción</label>
-              <textarea value={selected.description || ''}
-                onChange={e => setSelected(p => ({...p, description: e.target.value}))}
+              <textarea value={selected.description || ''} onChange={e => setSelected(p => ({...p, description: e.target.value}))}
                 rows={3} className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
                 style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
             </div>
@@ -280,20 +270,15 @@ export default function AdminCourses() {
               <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Emoji / Ícono</label>
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-                  style={{ background: (selected.color || '#7c6af7') + '30' }}>
-                  {selected.icon || '🎵'}
-                </div>
-                <input type="text" value={selected.icon || ''}
-                  onChange={e => setSelected(p => ({...p, icon: e.target.value}))}
+                  style={{ background: (selected.color || '#7c6af7') + '30' }}>{selected.icon || '🎵'}</div>
+                <input type="text" value={selected.icon || ''} onChange={e => setSelected(p => ({...p, icon: e.target.value}))}
                   className="flex-1 px-4 py-2.5 rounded-xl text-sm outline-none"
                   style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }}
                   placeholder="Escribe un emoji, ej: 🎹 🥁 🎸" />
               </div>
             </div>
-            <ColorPicker value={selected.color || '#7c6af7'}
-              onChange={c => setSelected(p => ({...p, color: c}))} />
-            <InstrumentPicker value={selected.instrument || ''}
-              onChange={v => setSelected(p => ({...p, instrument: v}))} />
+            <ColorPicker value={selected.color || '#7c6af7'} onChange={c => setSelected(p => ({...p, color: c}))} />
+            <InstrumentPicker value={selected.instrument || ''} onChange={v => setSelected(p => ({...p, instrument: v}))} />
             <div className="flex gap-3 pt-2">
               <Button type="submit" className="flex-1">Guardar</Button>
               <Button type="button" variant="secondary" onClick={() => setShowEdit(false)}>Cancelar</Button>
