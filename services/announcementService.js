@@ -23,6 +23,7 @@ export async function getAnnouncementsForStudent(userId) {
 
   const groupId = pg?.group_id || null;
   const subgroupIds = (psg || []).map(s => s.subgroup_id);
+  const now = new Date().toISOString();
 
   const { data, error } = await supabaseAdmin
     .from('announcements')
@@ -31,6 +32,8 @@ export async function getAnnouncementsForStudent(userId) {
   if (error) throw error;
 
   return data.filter(a => {
+    // Filtrar expirados
+    if (a.expires_at && a.expires_at < now) return false;
     if (a.target === 'all') return true;
     if (a.target === 'group' && a.group_id === groupId) return true;
     if (a.target === 'subgroup' && subgroupIds.includes(a.subgroup_id)) return true;
@@ -53,10 +56,17 @@ export async function markAllAsRead(userId) {
   ));
 }
 
-export async function createAnnouncement({ title, body, target, group_id, subgroup_id, created_by }) {
+export async function createAnnouncement({ title, body, target, group_id, subgroup_id, created_by, expires_at }) {
   const { data, error } = await supabaseAdmin
     .from('announcements')
-    .insert({ title, body, target, group_id: group_id || null, subgroup_id: subgroup_id || null, created_by, read_by: [] })
+    .insert({
+      title, body, target,
+      group_id: group_id || null,
+      subgroup_id: subgroup_id || null,
+      created_by,
+      read_by: [],
+      expires_at: expires_at || null,
+    })
     .select().single();
   if (error) throw error;
   return data;

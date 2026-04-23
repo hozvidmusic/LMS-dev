@@ -8,26 +8,33 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import toast from 'react-hot-toast';
-import { MdAdd, MdDelete, MdAnnouncement, MdPeople, MdGroup } from 'react-icons/md';
+import { MdAdd, MdDelete, MdAnnouncement } from 'react-icons/md';
 
-const EMPTY_FORM = { title: '', body: '', target: 'all', group_id: '', subgroup_id: '' };
+const EMPTY_FORM = { title: '', body: '', target: 'all', group_id: '', subgroup_id: '', expires_at: '' };
 
 function TargetBadge({ announcement }) {
   if (announcement.target === 'all') return (
-    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#4ade8020', color: '#4ade80' }}>
-      🌐 General
-    </span>
+    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#4ade8020', color: '#4ade80' }}>🌐 General</span>
   );
   if (announcement.target === 'group') return (
-    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#7c6af720', color: '#7c6af7' }}>
-      👥 {announcement.groups?.name}
-    </span>
+    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#7c6af720', color: '#7c6af7' }}>👥 {announcement.groups?.name}</span>
   );
   return (
-    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fbbf2420', color: '#fbbf24' }}>
-      🔸 {announcement.subgroups?.name}
-    </span>
+    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fbbf2420', color: '#fbbf24' }}>🔸 {announcement.subgroups?.name}</span>
   );
+}
+
+function isExpired(a) {
+  if (!a.expires_at) return false;
+  return new Date(a.expires_at) < new Date();
+}
+
+function formatDate(d) {
+  return new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function formatDateTime(d) {
+  return new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 export default function AdminAnnouncements() {
@@ -55,7 +62,11 @@ export default function AdminAnnouncements() {
     if (form.target === 'group' && !form.group_id) { toast.error('Selecciona un grupo'); return; }
     if (form.target === 'subgroup' && !form.subgroup_id) { toast.error('Selecciona un subgrupo'); return; }
     try {
-      await createAnnouncement({ ...form, created_by: profile.id });
+      await createAnnouncement({
+        ...form,
+        created_by: profile.id,
+        expires_at: form.expires_at ? new Date(form.expires_at).toISOString() : null,
+      });
       toast.success('Anuncio publicado');
       setShowCreate(false);
       setForm(EMPTY_FORM);
@@ -67,10 +78,6 @@ export default function AdminAnnouncements() {
     if (!confirm(`¿Eliminar "${a.title}"?`)) return;
     try { await deleteAnnouncement(a.id); toast.success('Anuncio eliminado'); load(); }
     catch { toast.error('Error al eliminar'); }
-  }
-
-  function formatDate(d) {
-    return new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
   return (
@@ -87,27 +94,43 @@ export default function AdminAnnouncements() {
         <div className="flex flex-col gap-3">
           {announcements.length === 0 ? (
             <Card><p className="text-center py-12" style={{ color: '#5a5a70' }}>No hay anuncios todavía.</p></Card>
-          ) : announcements.map(a => (
-            <Card key={a.id}>
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: '#7c6af720', color: '#7c6af7' }}>
-                  <MdAnnouncement size={20} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 className="font-semibold text-white">{a.title}</h3>
-                    <TargetBadge announcement={a} />
+          ) : announcements.map(a => {
+            const expired = isExpired(a);
+            return (
+              <Card key={a.id}>
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: expired ? '#5a5a7020' : '#7c6af720', color: expired ? '#5a5a70' : '#7c6af7' }}>
+                    <MdAnnouncement size={20} />
                   </div>
-                  <p className="text-sm leading-relaxed mb-2" style={{ color: '#9090a8' }}>{a.body}</p>
-                  <p className="text-xs" style={{ color: '#5a5a70' }}>
-                    {a.profiles?.display_name} · {formatDate(a.created_at)}
-                  </p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <h3 className="font-semibold" style={{ color: expired ? '#5a5a70' : 'white' }}>{a.title}</h3>
+                      {expired && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                          style={{ background: '#f75c6a20', color: '#f75c6a' }}>
+                          ⏰ Expirado
+                        </span>
+                      )}
+                      <TargetBadge announcement={a} />
+                    </div>
+                    <p className="text-sm leading-relaxed mb-2" style={{ color: expired ? '#3a3a50' : '#9090a8' }}>{a.body}</p>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <p className="text-xs" style={{ color: '#5a5a70' }}>
+                        {a.profiles?.display_name} · {formatDate(a.created_at)}
+                      </p>
+                      {a.expires_at && (
+                        <p className="text-xs" style={{ color: expired ? '#f75c6a' : '#fbbf24' }}>
+                          {expired ? '⏰ Expiró' : '⏳ Expira'}: {formatDateTime(a.expires_at)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Button size="sm" variant="danger" onClick={() => handleDelete(a)}><MdDelete /></Button>
                 </div>
-                <Button size="sm" variant="danger" onClick={() => handleDelete(a)}><MdDelete /></Button>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -165,6 +188,18 @@ export default function AdminAnnouncements() {
               </select>
             </div>
           )}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium" style={{ color: '#9090a8' }}>
+              Fecha de expiración <span style={{ color: '#5a5a70' }}>(opcional)</span>
+            </label>
+            <input type="datetime-local" value={form.expires_at}
+              onChange={e => setForm(p => ({...p, expires_at: e.target.value}))}
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
+            <p className="text-xs" style={{ color: '#5a5a70' }}>
+              Si defines una fecha, el anuncio dejará de mostrarse a los alumnos después de esa fecha.
+            </p>
+          </div>
           <div className="flex gap-3 pt-2">
             <Button type="submit" className="flex-1">Publicar</Button>
             <Button type="button" variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
