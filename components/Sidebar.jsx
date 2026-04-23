@@ -202,6 +202,7 @@ function StudentViewMenu({ onClose, unreadCount }) {
           <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
           <NavItem href="/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
           <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} badge={unreadCount} />
+          <NavItem href="/calendar" icon={<MdCalendarMonth className="text-lg" />} label="Calendario" onClose={onClose} />
         </div>
       )}
     </div>
@@ -236,6 +237,7 @@ function SidebarContent({ profile, onLogout, onClose }) {
             <NavItem href="/admin/resources" icon={<MdLibraryMusic className="text-lg" />} label="Recursos" onClose={onClose} />
             <NavItem href="/admin/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
             <NavItem href="/admin/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} />
+            <NavItem href="/admin/calendar" icon={<MdCalendarMonth className="text-lg" />} label="Calendario" onClose={onClose} />
           </>
         ) : (
           <>
@@ -244,6 +246,7 @@ function SidebarContent({ profile, onLogout, onClose }) {
             <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
             <NavItem href="/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
             <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} badge={unreadCount} />
+          <NavItem href="/calendar" icon={<MdCalendarMonth className="text-lg" />} label="Calendario" onClose={onClose} />
           </>
         )}
       </nav>
