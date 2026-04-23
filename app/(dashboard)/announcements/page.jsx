@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getAnnouncementsForStudent } from '@/services/announcementService';
+import { getAnnouncementsForStudent, markAllAsRead } from '@/services/announcementService';
 import Card from '@/components/ui/Card';
 import { MdAnnouncement } from 'react-icons/md';
 
@@ -24,8 +24,13 @@ export default function AnnouncementsPage() {
 
   useEffect(() => {
     if (!profile) return;
-    getAnnouncementsForStudent(profile.id)
-      .then(data => { setAnnouncements(data); setLoading(false); });
+    async function load() {
+      const data = await getAnnouncementsForStudent(profile.id);
+      setAnnouncements(data);
+      setLoading(false);
+      await markAllAsRead(profile.id);
+    }
+    load();
   }, [profile]);
 
   function formatDate(d) {
@@ -43,26 +48,37 @@ export default function AnnouncementsPage() {
         <div className="flex flex-col gap-3">
           {announcements.length === 0 ? (
             <Card><p className="text-center py-12" style={{ color: '#5a5a70' }}>No hay anuncios por ahora.</p></Card>
-          ) : announcements.map(a => (
-            <Card key={a.id}>
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: '#7c6af720', color: '#7c6af7' }}>
-                  <MdAnnouncement size={20} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 className="font-semibold text-white">{a.title}</h3>
-                    <TargetBadge announcement={a} />
+          ) : announcements.map(a => {
+            const isUnread = !a.read_by?.includes(profile.id);
+            return (
+              <Card key={a.id}>
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 relative"
+                    style={{ background: '#7c6af720', color: '#7c6af7' }}>
+                    <MdAnnouncement size={20} />
+                    {isUnread && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full"
+                        style={{ background: '#f75c6a' }} />
+                    )}
                   </div>
-                  <p className="text-sm leading-relaxed mb-2" style={{ color: '#9090a8' }}>{a.body}</p>
-                  <p className="text-xs" style={{ color: '#5a5a70' }}>
-                    {a.profiles?.display_name} · {formatDate(a.created_at)}
-                  </p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <h3 className="font-semibold text-white">{a.title}</h3>
+                      {isUnread && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                          style={{ background: '#f75c6a20', color: '#f75c6a' }}>Nuevo</span>
+                      )}
+                      <TargetBadge announcement={a} />
+                    </div>
+                    <p className="text-sm leading-relaxed mb-2" style={{ color: '#9090a8' }}>{a.body}</p>
+                    <p className="text-xs" style={{ color: '#5a5a70' }}>
+                      {a.profiles?.display_name} · {formatDate(a.created_at)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import { supabase } from '@/supabase/client';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -17,7 +16,6 @@ export async function getAllAnnouncements() {
 }
 
 export async function getAnnouncementsForStudent(userId) {
-  // Obtener grupo y subgrupos del alumno
   const { data: pg } = await supabaseAdmin
     .from('profile_groups').select('group_id').eq('user_id', userId).single();
   const { data: psg } = await supabaseAdmin
@@ -40,10 +38,25 @@ export async function getAnnouncementsForStudent(userId) {
   });
 }
 
+export async function getUnreadCountForStudent(userId) {
+  const announcements = await getAnnouncementsForStudent(userId);
+  return announcements.filter(a => !a.read_by?.includes(userId)).length;
+}
+
+export async function markAllAsRead(userId) {
+  const announcements = await getAnnouncementsForStudent(userId);
+  const unread = announcements.filter(a => !a.read_by?.includes(userId));
+  await Promise.all(unread.map(a =>
+    supabaseAdmin.from('announcements').update({
+      read_by: [...(a.read_by || []), userId]
+    }).eq('id', a.id)
+  ));
+}
+
 export async function createAnnouncement({ title, body, target, group_id, subgroup_id, created_by }) {
   const { data, error } = await supabaseAdmin
     .from('announcements')
-    .insert({ title, body, target, group_id: group_id || null, subgroup_id: subgroup_id || null, created_by })
+    .insert({ title, body, target, group_id: group_id || null, subgroup_id: subgroup_id || null, created_by, read_by: [] })
     .select().single();
   if (error) throw error;
   return data;

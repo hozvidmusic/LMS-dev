@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { logout } from '@/services/authService';
 import { useEffect, useState } from 'react';
 import { getCourses, getLessonsByCourse } from '@/services/courseService';
+import { getUnreadCountForStudent } from '@/services/announcementService';
 import { supabase } from '@/supabase/client';
 import toast from 'react-hot-toast';
 import {
@@ -148,7 +149,7 @@ function LessonSidebar({ courseId, lessonId, profile, onLogout, onClose }) {
   );
 }
 
-function NavItem({ href, icon, label, onClose }) {
+function NavItem({ href, icon, label, onClose, badge }) {
   const pathname = usePathname();
   const isActive = pathname === href || pathname.startsWith(href + '/');
   return (
@@ -156,12 +157,19 @@ function NavItem({ href, icon, label, onClose }) {
       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
         isActive ? 'bg-[#7c6af720] text-[#7c6af7]' : 'text-[#9090a8] hover:text-white hover:bg-[#22222e]'
       }`}>
-      {icon} {label}
+      {icon}
+      <span className="flex-1">{label}</span>
+      {badge > 0 && (
+        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center"
+          style={{ background: '#f75c6a', color: 'white' }}>
+          {badge > 9 ? '9+' : badge}
+        </span>
+      )}
     </Link>
   );
 }
 
-function StudentViewMenu({ onClose }) {
+function StudentViewMenu({ onClose, unreadCount }) {
   const pathname = usePathname();
   const studentPaths = ['/courses', '/profile', '/resources', '/glossary', '/announcements'];
   const isAnyActive = studentPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
@@ -175,10 +183,16 @@ function StudentViewMenu({ onClose }) {
           background: isAnyActive ? '#7c6af710' : 'transparent',
           color: isAnyActive ? '#7c6af7' : '#9090a8',
         }}
-        onMouseEnter={e => { if (!isAnyActive) e.currentTarget.style.background = '#22222e'; e.currentTarget.style.color = '#e8e8f0'; }}
+        onMouseEnter={e => { if (!isAnyActive) { e.currentTarget.style.background = '#22222e'; e.currentTarget.style.color = '#e8e8f0'; } }}
         onMouseLeave={e => { if (!isAnyActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9090a8'; } }}>
         <MdVisibility className="text-lg flex-shrink-0" />
         <span className="flex-1 text-left">Vista de alumno</span>
+        {unreadCount > 0 && (
+          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center mr-1"
+            style={{ background: '#f75c6a', color: 'white' }}>
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
         {open ? <MdExpandLess className="text-lg" /> : <MdExpandMore className="text-lg" />}
       </button>
       {open && (
@@ -187,7 +201,7 @@ function StudentViewMenu({ onClose }) {
           <NavItem href="/profile" icon={<MdPerson className="text-lg" />} label="Mi Perfil" onClose={onClose} />
           <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
           <NavItem href="/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
-          <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} />
+          <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} badge={unreadCount} />
         </div>
       )}
     </div>
@@ -196,6 +210,17 @@ function StudentViewMenu({ onClose }) {
 
 function SidebarContent({ profile, onLogout, onClose }) {
   const isAdmin = profile?.role === 'admin';
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!profile) return;
+    getUnreadCountForStudent(profile.id).then(setUnreadCount);
+    const interval = setInterval(() => {
+      getUnreadCountForStudent(profile.id).then(setUnreadCount);
+    }, 60000); // refresca cada minuto
+    return () => clearInterval(interval);
+  }, [profile]);
+
   return (
     <div className="flex flex-col h-full p-4">
       <div className="flex flex-col items-center px-3 py-4 mb-4">
@@ -208,7 +233,7 @@ function SidebarContent({ profile, onLogout, onClose }) {
 
         {isAdmin ? (
           <>
-            <StudentViewMenu onClose={onClose} />
+            <StudentViewMenu onClose={onClose} unreadCount={unreadCount} />
             <div className="mt-4 mb-2 px-3">
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#5a5a70' }}>
                 Administración
@@ -227,7 +252,7 @@ function SidebarContent({ profile, onLogout, onClose }) {
             <NavItem href="/profile" icon={<MdPerson className="text-lg" />} label="Mi Perfil" onClose={onClose} />
             <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
             <NavItem href="/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
-            <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} />
+            <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} badge={unreadCount} />
           </>
         )}
       </nav>
