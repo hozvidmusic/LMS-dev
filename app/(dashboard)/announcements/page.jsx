@@ -21,15 +21,30 @@ function formatDate(d) {
   return new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function isExpired(a) {
+  if (!a.expires_at) return false;
+  return new Date(a.expires_at) < new Date();
+}
+
 export default function AnnouncementsPage() {
   const { profile } = useAuth();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  async function load() {
     if (!profile) return;
-    getAnnouncementsForStudent(profile.id)
-      .then(data => { setAnnouncements(data); setLoading(false); });
+    const data = await getAnnouncementsForStudent(profile.id);
+    setAnnouncements(data);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    load();
+    // Verificar expirados cada 60 segundos
+    const interval = setInterval(() => {
+      setAnnouncements(prev => prev.filter(a => !isExpired(a)));
+    }, 60000);
+    return () => clearInterval(interval);
   }, [profile]);
 
   async function handleMarkAsRead(a) {
