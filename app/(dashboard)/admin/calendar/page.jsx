@@ -1,14 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getAllEvents, createEvent, updateEvent, deleteEvent } from '@/services/calendarService';
+import { getAllEvents, createEvent, updateEvent, deleteEvent, getEventRatings } from '@/services/calendarService';
 import { getGroups, getAllSubgroups } from '@/services/groupService';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import toast from 'react-hot-toast';
-import { MdAdd, MdDelete, MdEdit, MdChevronLeft, MdChevronRight } from 'react-icons/md';
+import { MdAdd, MdDelete, MdEdit, MdChevronLeft, MdChevronRight, MdStar, MdStarBorder } from 'react-icons/md';
 
 const EMPTY_FORM = { title: '', description: '', type: 'class', starts_at: '', ends_at: '', target: 'all', group_id: '', subgroup_id: '' };
 
@@ -21,6 +21,16 @@ function TargetBadge({ event }) {
   if (event.target === 'all') return <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#4ade8020', color: '#4ade80' }}>🌐 General</span>;
   if (event.target === 'group') return <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#7c6af720', color: '#7c6af7' }}>👥 {event.groups?.name}</span>;
   return <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fbbf2420', color: '#fbbf24' }}>🔸 {event.subgroups?.name}</span>;
+}
+
+function Stars({ rating, size = 16 }) {
+  return (
+    <span className="flex gap-0.5">
+      {[1,2,3,4,5].map(s => (
+        <span key={s} style={{ color: s <= rating ? '#fbbf24' : '#2a2a38', fontSize: size }}>★</span>
+      ))}
+    </span>
+  );
 }
 
 function EventForm({ form, setForm, groups, subgroups }) {
@@ -117,7 +127,10 @@ export default function AdminCalendar() {
   const [selectedDay, setSelectedDay] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showRatings, setShowRatings] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [ratings, setRatings] = useState([]);
+  const [loadingRatings, setLoadingRatings] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
 
   async function load() {
@@ -159,7 +172,15 @@ export default function AdminCalendar() {
     catch { toast.error('Error al eliminar'); }
   }
 
-  // Calendario
+  async function openRatings(ev) {
+    setSelected(ev);
+    setLoadingRatings(true);
+    setShowRatings(true);
+    const data = await getEventRatings(ev.id);
+    setRatings(data);
+    setLoadingRatings(false);
+  }
+
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
@@ -174,11 +195,17 @@ export default function AdminCalendar() {
     });
   }
 
+  function isPast(ev) { return new Date(ev.starts_at) < new Date(); }
+
   const selectedDayEvents = selectedDay ? getEventsForDay(selectedDay) : [];
 
   function formatTime(d) {
     return new Date(d).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
   }
+
+  const avgRating = ratings.length > 0
+    ? (ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length).toFixed(1)
+    : null;
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -198,9 +225,7 @@ export default function AdminCalendar() {
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
           <MdChevronLeft size={24} />
         </button>
-        <h2 className="font-display font-bold text-white text-lg">
-          {monthNames[month]} {year}
-        </h2>
+        <h2 className="font-display font-bold text-white text-lg">{monthNames[month]} {year}</h2>
         <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))}
           className="p-2 rounded-xl transition-all" style={{ color: '#9090a8' }}
           onMouseEnter={e => e.currentTarget.style.background = '#22222e'}
@@ -213,8 +238,7 @@ export default function AdminCalendar() {
       <Card>
         <div className="grid grid-cols-7 mb-2">
           {dayNames.map(d => (
-            <div key={d} className="text-center text-xs font-semibold py-2"
-              style={{ color: '#5a5a70' }}>{d}</div>
+            <div key={d} className="text-center text-xs font-semibold py-2" style={{ color: '#5a5a70' }}>{d}</div>
           ))}
         </div>
         <div className="grid grid-cols-7 gap-1">
@@ -255,33 +279,45 @@ export default function AdminCalendar() {
             {selectedDayEvents.length === 0 && <span className="text-sm font-normal ml-2" style={{ color: '#5a5a70' }}>— Sin eventos</span>}
           </h3>
           <div className="flex flex-col gap-2">
-            {selectedDayEvents.map(ev => (
-              <Card key={ev.id}>
-                <div className="flex items-start gap-3">
-                  <div className="w-3 h-3 rounded-full mt-1.5 flex-shrink-0"
-                    style={{ background: TYPE_CONFIG[ev.type]?.color || '#7c6af7' }} />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="font-semibold text-white">{ev.title}</h4>
-                      <span className="text-xs" style={{ color: '#5a5a70' }}>{TYPE_CONFIG[ev.type]?.label}</span>
-                      <TargetBadge event={ev} />
+            {selectedDayEvents.map(ev => {
+              const past = isPast(ev);
+              return (
+                <Card key={ev.id}>
+                  <div className="flex items-start gap-3">
+                    <div className="w-3 h-3 rounded-full mt-1.5 flex-shrink-0"
+                      style={{ background: TYPE_CONFIG[ev.type]?.color || '#7c6af7' }} />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-semibold text-white">{ev.title}</h4>
+                        <span className="text-xs" style={{ color: '#5a5a70' }}>{TYPE_CONFIG[ev.type]?.label}</span>
+                        <TargetBadge event={ev} />
+                        {past && (
+                          <span className="text-xs px-2 py-0.5 rounded-full"
+                            style={{ background: '#5a5a7020', color: '#5a5a70' }}>Pasado</span>
+                        )}
+                      </div>
+                      {ev.description && <p className="text-sm mt-1" style={{ color: '#9090a8' }}>{ev.description}</p>}
+                      <p className="text-xs mt-1" style={{ color: '#5a5a70' }}>
+                        {formatTime(ev.starts_at)}{ev.ends_at ? ` — ${formatTime(ev.ends_at)}` : ''}
+                      </p>
                     </div>
-                    {ev.description && <p className="text-sm mt-1" style={{ color: '#9090a8' }}>{ev.description}</p>}
-                    <p className="text-xs mt-1" style={{ color: '#5a5a70' }}>
-                      {formatTime(ev.starts_at)}{ev.ends_at ? ` — ${formatTime(ev.ends_at)}` : ''}
-                    </p>
+                    <div className="flex gap-1 flex-shrink-0 flex-wrap justify-end">
+                      {past && (
+                        <Button size="sm" variant="secondary" onClick={() => openRatings(ev)}>
+                          ⭐ Evaluaciones
+                        </Button>
+                      )}
+                      <Button size="sm" variant="secondary" onClick={() => {
+                        const toLocal = (iso) => iso ? new Date(iso).toISOString().slice(0,16) : '';
+                        setSelected({ ...ev, starts_at: toLocal(ev.starts_at), ends_at: toLocal(ev.ends_at) });
+                        setShowEdit(true);
+                      }}><MdEdit /></Button>
+                      <Button size="sm" variant="danger" onClick={() => handleDelete(ev)}><MdDelete /></Button>
+                    </div>
                   </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <Button size="sm" variant="secondary" onClick={() => {
-                      const toLocal = (iso) => iso ? new Date(iso).toISOString().slice(0,16) : '';
-                      setSelected({ ...ev, starts_at: toLocal(ev.starts_at), ends_at: toLocal(ev.ends_at) });
-                      setShowEdit(true);
-                    }}><MdEdit /></Button>
-                    <Button size="sm" variant="danger" onClick={() => handleDelete(ev)}><MdDelete /></Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
@@ -298,8 +334,8 @@ export default function AdminCalendar() {
       </Modal>
 
       {/* Modal editar */}
-      {selected && (
-        <Modal isOpen={showEdit} onClose={() => setShowEdit(false)} title="Editar evento">
+      {selected && showEdit && (
+        <Modal isOpen onClose={() => setShowEdit(false)} title="Editar evento">
           <form onSubmit={handleEdit} className="flex flex-col gap-4">
             <EventForm form={selected} setForm={setSelected} groups={groups} subgroups={subgroups} />
             <div className="flex gap-3 pt-2">
@@ -307,6 +343,61 @@ export default function AdminCalendar() {
               <Button type="button" variant="secondary" onClick={() => setShowEdit(false)}>Cancelar</Button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* Modal evaluaciones */}
+      {selected && showRatings && (
+        <Modal isOpen onClose={() => setShowRatings(false)} title={`Evaluaciones: ${selected.title}`}>
+          <div className="flex flex-col gap-4">
+            {loadingRatings ? (
+              <p style={{ color: '#5a5a70' }}>Cargando...</p>
+            ) : ratings.length === 0 ? (
+              <p className="text-center py-8" style={{ color: '#5a5a70' }}>
+                Ningún alumno ha evaluado este evento todavía.
+              </p>
+            ) : (
+              <>
+                {/* Resumen */}
+                <div className="p-4 rounded-xl text-center" style={{ background: '#0f0f13', border: '1px solid #2a2a38' }}>
+                  <p className="text-4xl font-bold text-white mb-1">{avgRating}</p>
+                  <Stars rating={Math.round(avgRating)} size={24} />
+                  <p className="text-sm mt-2" style={{ color: '#5a5a70' }}>
+                    {ratings.length} evaluación{ratings.length !== 1 ? 'es' : ''}
+                  </p>
+                </div>
+                {/* Distribución */}
+                <div className="flex flex-col gap-1.5">
+                  {[5,4,3,2,1].map(star => {
+                    const count = ratings.filter(r => r.rating === star).length;
+                    const pct = ratings.length > 0 ? (count / ratings.length) * 100 : 0;
+                    return (
+                      <div key={star} className="flex items-center gap-2">
+                        <span className="text-xs w-2" style={{ color: '#fbbf24' }}>{star}</span>
+                        <span style={{ color: '#fbbf24', fontSize: 14 }}>★</span>
+                        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: '#2a2a38' }}>
+                          <div className="h-full rounded-full transition-all"
+                            style={{ width: `${pct}%`, background: '#fbbf24' }} />
+                        </div>
+                        <span className="text-xs w-4 text-right" style={{ color: '#5a5a70' }}>{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Lista individual */}
+                <div className="flex flex-col gap-2 mt-2">
+                  {ratings.map(r => (
+                    <div key={r.id} className="flex items-center justify-between px-3 py-2 rounded-xl"
+                      style={{ background: '#0f0f13', border: '1px solid #2a2a38' }}>
+                      <span className="text-sm text-white">{r.profiles?.display_name}</span>
+                      <Stars rating={r.rating} size={14} />
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            <Button variant="secondary" onClick={() => setShowRatings(false)}>Cerrar</Button>
+          </div>
         </Modal>
       )}
     </div>
