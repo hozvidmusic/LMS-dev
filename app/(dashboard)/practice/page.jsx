@@ -20,34 +20,22 @@ const DENOMINATOR_FIGURES = { 1: '𝅝', 2: '𝅗𝅥', 4: '♩', 8: '♪', 16: 
 const DENOMINATOR_NAMES = { 1: 'Redonda', 2: 'Blanca', 4: 'Negra', 8: 'Corchea', 16: 'Semicorchea', 32: 'Fusa' };
 
 const SUBDIVISIONS = [
-  { id: 'quarter', label: '♩', name: 'Negra', pattern: [1], sizes: [12] },
-  { id: 'eighth', label: '♪♪', name: 'Corcheas', pattern: [1, 0.6], sizes: [12, 8] },
-  { id: 'triplet', label: '♪♪♪', name: 'Tresillos', pattern: [1, 0.6, 0.6], sizes: [12, 8, 8] },
-  { id: 'sixteenth', label: '♬♬', name: 'Semicorcheas', pattern: [1, 0.5, 0.5, 0.5], sizes: [12, 7, 7, 7] },
-  { id: 'quintuplet', label: '5', name: 'Quintillo', pattern: [1, 0.5, 0.5, 0.5, 0.5], sizes: [12, 7, 7, 7, 7] },
-  { id: 'sextuplet', label: '6', name: 'Sextillo', pattern: [1, 0.5, 0.5, 0.5, 0.5, 0.5], sizes: [12, 7, 7, 7, 7, 7] },
-  { id: 'septuplet', label: '7', name: 'Septillo', pattern: [1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5], sizes: [12, 7, 7, 7, 7, 7, 7] },
-  { id: 'galopa', label: '♩♪', name: 'Galopa', pattern: [1, 0.5], sizes: [14, 8], timing: [0.67, 0.33] },
-  { id: 'contra_galopa', label: '♪♩', name: 'Contra galopa', pattern: [1, 0.5], sizes: [8, 14], timing: [0.33, 0.67] },
-  { id: 'saltillo', label: '♪.♬', name: 'Saltillo', pattern: [1, 0.4], sizes: [14, 7], timing: [0.75, 0.25] },
-  { id: 'contra_saltillo', label: '♬♪.', name: 'Contra saltillo', pattern: [0.4, 1], sizes: [7, 14], timing: [0.25, 0.75] },
-  { id: 'swing', label: '↝', name: 'Swing', pattern: [1, 0.4, 0.6], sizes: [12, 7, 9], timing: [0.5, 0.17, 0.33] },
+  { id: 'quarter',   label: '♩',   name: 'Negra',        pattern: [1],             timing: [1] },
+  { id: 'eighth',    label: '♪♪',  name: 'Corcheas',     pattern: [1, 0.6],        timing: [0.5, 0.5] },
+  { id: 'triplet',   label: '♪♪♪', name: 'Tresillos',    pattern: [1, 0.6, 0.6],   timing: [1/3, 1/3, 1/3] },
+  { id: 'sixteenth', label: '♬♬',  name: 'Semicorcheas', pattern: [1, 0.5, 0.5, 0.5], timing: [0.25, 0.25, 0.25, 0.25] },
 ];
 
 const ACCENT_OPTIONS = [
   { value: 'strong', label: 'Fuerte', gain: 1.0 },
-  { value: 'medium', label: 'Medio', gain: 0.5 },
-  { value: 'weak', label: 'Débil', gain: 0.2 },
+  { value: 'medium', label: 'Medio',  gain: 0.5 },
+  { value: 'weak',   label: 'Débil',  gain: 0.2 },
 ];
 
-function getSubdivisionCount(sub) {
-  return sub.pattern.length;
-}
-
-function getSubdivisionTiming(sub) {
-  if (sub.timing) return sub.timing;
-  const count = sub.pattern.length;
-  return sub.pattern.map(() => 1 / count);
+function getClosestPreset(bpm) {
+  return BPM_PRESETS.reduce((prev, curr) =>
+    Math.abs(curr.bpm - bpm) < Math.abs(prev.bpm - bpm) ? curr : prev
+  );
 }
 
 function Metronome() {
@@ -81,7 +69,8 @@ function Metronome() {
   useEffect(() => { accentWeakRef.current = accentWeak; }, [accentWeak]);
 
   function getAudioCtx() {
-    if (!audioCtx.current) audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioCtx.current)
+      audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
     return audioCtx.current;
   }
 
@@ -100,36 +89,29 @@ function Metronome() {
 
   const scheduler = useCallback(() => {
     const ctx = getAudioCtx();
-    const bpmNow = bpmRef.current;
-    const numNow = numeratorRef.current;
-    const subNow = subdivisionRef.current;
-    const strongNow = accentStrongRef.current;
-    const weakNow = accentWeakRef.current;
-    const timing = getSubdivisionTiming(subNow);
-    const secondsPerBeat = 60 / bpmNow;
+    const sub = subdivisionRef.current;
+    const secondsPerBeat = 60 / bpmRef.current;
 
     while (nextNoteTime.current < ctx.currentTime + 0.1) {
       const beat = beatRef.current;
-      const sub = subRef.current;
-      const strongGain = ACCENT_OPTIONS.find(a => a.value === strongNow)?.gain || 1;
-      const weakGain = ACCENT_OPTIONS.find(a => a.value === weakNow)?.gain || 0.5;
+      const si = subRef.current;
+      const strongGain = ACCENT_OPTIONS.find(a => a.value === accentStrongRef.current)?.gain || 1;
+      const weakGain = ACCENT_OPTIONS.find(a => a.value === accentWeakRef.current)?.gain || 0.5;
 
       let gain;
-      if (beat === 0 && sub === 0) gain = strongGain;
-      else if (sub === 0) gain = weakGain;
+      if (beat === 0 && si === 0) gain = strongGain;
+      else if (si === 0) gain = weakGain;
       else gain = 0.15;
 
       scheduleClick(nextNoteTime.current, gain);
 
-      const b = beat;
-      const s = sub;
-      const t = nextNoteTime.current;
+      const b = beat, s = si, t = nextNoteTime.current;
       const delay = Math.max(0, (t - ctx.currentTime) * 1000);
       setTimeout(() => { setCurrentBeat(b); setCurrentSub(s); }, delay);
 
-      nextNoteTime.current += secondsPerBeat * timing[sub];
-      subRef.current = (sub + 1) % timing.length;
-      if (subRef.current === 0) beatRef.current = (beat + 1) % numNow;
+      nextNoteTime.current += secondsPerBeat * sub.timing[si];
+      subRef.current = (si + 1) % sub.timing.length;
+      if (subRef.current === 0) beatRef.current = (beat + 1) % numeratorRef.current;
     }
     schedulerRef.current = setTimeout(scheduler, 25);
   }, []);
@@ -164,9 +146,7 @@ function Metronome() {
     }
   }
 
-  const currentPreset = BPM_PRESETS.reduce((prev, curr) =>
-    Math.abs(curr.bpm - bpm) < Math.abs(prev.bpm - bpm) ? curr : prev
-  );
+  const closestPreset = getClosestPreset(bpm);
 
   return (
     <div className="flex flex-col items-center gap-6 max-w-lg mx-auto">
@@ -174,33 +154,38 @@ function Metronome() {
       {/* BPM Display */}
       <div className="text-center">
         <div className="text-7xl font-bold text-white font-display leading-none">{bpm}</div>
-        <div className="text-lg mt-1 font-medium" style={{ color: '#7c6af7' }}>{currentPreset.name}</div>
+        <div className="text-lg mt-1 font-medium" style={{ color: '#7c6af7' }}>{closestPreset.name}</div>
         <div className="text-xs mt-0.5" style={{ color: '#5a5a70' }}>BPM</div>
       </div>
 
-      {/* BPM Slider */}
-      <div className="w-full flex flex-col gap-3">
+      {/* Slider */}
+      <div className="w-full flex flex-col gap-1">
         <input type="range" min="20" max="300" value={bpm}
           onChange={e => setBpm(Number(e.target.value))}
           className="w-full" style={{ accentColor: '#7c6af7' }} />
         <div className="flex justify-between text-xs" style={{ color: '#5a5a70' }}>
-          <span>20 Grave</span><span>Prestissimo 208</span>
+          <span>20</span><span>300</span>
         </div>
+      </div>
 
-        {/* Presets */}
-        <div className="grid grid-cols-4 gap-1.5">
-          {BPM_PRESETS.map(p => (
+      {/* Presets */}
+      <div className="w-full flex flex-wrap gap-1.5 justify-center">
+        {BPM_PRESETS.map(p => {
+          const isActive = closestPreset.bpm === p.bpm;
+          return (
             <button key={p.bpm} onClick={() => setBpm(p.bpm)}
-              className="flex flex-col items-center py-2 px-1 rounded-xl text-center transition-all"
+              className="flex flex-col items-center py-1.5 px-3 rounded-xl transition-all"
               style={{
-                background: Math.abs(bpm - p.bpm) < 8 ? '#7c6af720' : '#22222e',
-                border: `1px solid ${Math.abs(bpm - p.bpm) < 8 ? '#7c6af7' : '#333344'}`,
+                background: isActive ? '#7c6af720' : '#22222e',
+                border: `1px solid ${isActive ? '#7c6af7' : '#333344'}`,
+                minWidth: '56px',
               }}>
-              <span className="text-xs font-bold" style={{ color: Math.abs(bpm - p.bpm) < 8 ? '#7c6af7' : '#e8e8f0' }}>{p.bpm}</span>
-              <span className="text-xs" style={{ color: '#5a5a70' }}>{p.name}</span>
+              <span className="text-sm font-bold"
+                style={{ color: isActive ? '#7c6af7' : '#e8e8f0' }}>{p.bpm}</span>
+              <span className="text-xs" style={{ color: '#5a5a70', fontSize: '10px' }}>{p.name}</span>
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
       {/* Compás */}
@@ -210,16 +195,12 @@ function Metronome() {
           <label className="text-sm font-medium text-center" style={{ color: '#9090a8' }}>Numerador</label>
           <div className="flex items-center gap-2 justify-center">
             <button onClick={() => setNumerator(p => Math.max(1, p - 1))}
-              className="w-9 h-9 rounded-xl text-lg font-bold transition-all"
-              style={{ background: '#22222e', color: '#9090a8' }}
-              onMouseEnter={e => e.currentTarget.style.background = '#2a2a38'}
-              onMouseLeave={e => e.currentTarget.style.background = '#22222e'}>−</button>
+              className="w-9 h-9 rounded-xl text-lg font-bold"
+              style={{ background: '#22222e', color: '#9090a8' }}>−</button>
             <span className="text-3xl font-bold text-white w-10 text-center">{numerator}</span>
             <button onClick={() => setNumerator(p => Math.min(16, p + 1))}
-              className="w-9 h-9 rounded-xl text-lg font-bold transition-all"
-              style={{ background: '#22222e', color: '#9090a8' }}
-              onMouseEnter={e => e.currentTarget.style.background = '#2a2a38'}
-              onMouseLeave={e => e.currentTarget.style.background = '#22222e'}>+</button>
+              className="w-9 h-9 rounded-xl text-lg font-bold"
+              style={{ background: '#22222e', color: '#9090a8' }}>+</button>
           </div>
         </div>
 
@@ -231,23 +212,19 @@ function Metronome() {
               const idx = DENOMINATORS.indexOf(denominator);
               if (idx > 0) setDenominator(DENOMINATORS[idx - 1]);
             }}
-              className="w-9 h-9 rounded-xl text-lg font-bold transition-all"
-              style={{ background: '#22222e', color: '#9090a8' }}
-              onMouseEnter={e => e.currentTarget.style.background = '#2a2a38'}
-              onMouseLeave={e => e.currentTarget.style.background = '#22222e'}>−</button>
-            <div className="flex flex-col items-center w-12">
+              className="w-9 h-9 rounded-xl text-lg font-bold"
+              style={{ background: '#22222e', color: '#9090a8' }}>−</button>
+            <div className="flex flex-col items-center w-14">
               <span className="text-2xl" style={{ color: '#7c6af7' }}>{DENOMINATOR_FIGURES[denominator]}</span>
-              <span className="text-xs font-bold text-white">{denominator}</span>
-              <span className="text-xs" style={{ color: '#5a5a70', fontSize: '10px' }}>{DENOMINATOR_NAMES[denominator]}</span>
+              <span className="text-sm font-bold text-white">{denominator}</span>
+              <span style={{ color: '#5a5a70', fontSize: '10px' }}>{DENOMINATOR_NAMES[denominator]}</span>
             </div>
             <button onClick={() => {
               const idx = DENOMINATORS.indexOf(denominator);
               if (idx < DENOMINATORS.length - 1) setDenominator(DENOMINATORS[idx + 1]);
             }}
-              className="w-9 h-9 rounded-xl text-lg font-bold transition-all"
-              style={{ background: '#22222e', color: '#9090a8' }}
-              onMouseEnter={e => e.currentTarget.style.background = '#2a2a38'}
-              onMouseLeave={e => e.currentTarget.style.background = '#22222e'}>+</button>
+              className="w-9 h-9 rounded-xl text-lg font-bold"
+              style={{ background: '#22222e', color: '#9090a8' }}>+</button>
           </div>
         </div>
       </div>
@@ -255,16 +232,16 @@ function Metronome() {
       {/* Subdivisiones */}
       <div className="w-full flex flex-col gap-1.5">
         <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Subdivisión</label>
-        <div className="grid grid-cols-4 gap-1.5">
+        <div className="flex gap-2">
           {SUBDIVISIONS.map(s => (
             <button key={s.id} onClick={() => setSubdivision(s)}
-              className="flex flex-col items-center py-2 px-1 rounded-xl transition-all"
+              className="flex-1 flex flex-col items-center py-2 rounded-xl transition-all"
               style={{
                 background: subdivision.id === s.id ? '#7c6af720' : '#22222e',
                 border: `1px solid ${subdivision.id === s.id ? '#7c6af7' : '#333344'}`,
               }}>
-              <span className="text-base" style={{ color: subdivision.id === s.id ? '#7c6af7' : '#e8e8f0' }}>{s.label}</span>
-              <span className="text-xs mt-0.5" style={{ color: '#5a5a70', fontSize: '10px' }}>{s.name}</span>
+              <span className="text-lg" style={{ color: subdivision.id === s.id ? '#7c6af7' : '#e8e8f0' }}>{s.label}</span>
+              <span style={{ color: '#5a5a70', fontSize: '10px' }}>{s.name}</span>
             </button>
           ))}
         </div>
@@ -302,50 +279,59 @@ function Metronome() {
         </div>
       </div>
 
-      {/* Pulso visual — PULSO arriba, SUBDIVISIONES abajo, alineados */}
-      <div className="w-full flex flex-col gap-2">
-        <div className="flex gap-2 justify-center">
-          {Array.from({ length: numerator }).map((_, beatIdx) => {
-            const isActive = isPlaying && currentBeat === beatIdx;
-            const subCount = subdivision.pattern.length;
-            const totalWidth = subCount * 14 + (subCount - 1) * 4;
-            return (
-              <div key={beatIdx} className="flex flex-col items-start gap-1.5">
-                {/* Pulso arriba — alineado con el primer punto de la subdivisión */}
-                <div style={{ width: totalWidth, display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
-                  <div className="rounded-full transition-all duration-75"
-                    style={{
-                      width: isActive ? 16 : 14,
-                      height: isActive ? 16 : 14,
-                      background: isActive
-                        ? (beatIdx === 0 ? '#f7a23c' : '#7c6af7')
-                        : '#2a2a38',
-                      boxShadow: isActive ? `0 0 8px ${beatIdx === 0 ? '#f7a23c' : '#7c6af7'}` : 'none',
-                    }} />
-                </div>
-                {/* Subdivisiones abajo */}
-                <div className="flex gap-1 items-center">
-                  {subdivision.pattern.map((size, subIdx) => {
-                    const isSubActive = isPlaying && currentBeat === beatIdx && currentSub === subIdx;
-                    const dotSize = subIdx === 0 ? 14 : Math.round(14 * size);
-                    return (
-                      <div key={subIdx} className="rounded-full transition-all duration-75"
-                        style={{
-                          width: dotSize,
-                          height: dotSize,
-                          background: isSubActive
-                            ? (subIdx === 0 ? (beatIdx === 0 ? '#f7a23c' : '#7c6af7') : '#a08af7')
-                            : '#2a2a38',
-                        }} />
-                    );
-                  })}
-                </div>
-                {/* Número de tiempo */}
-                <div className="text-xs text-center" style={{ color: '#3a3a50', width: totalWidth }}>{beatIdx + 1}</div>
+      {/* Pulso visual — pulso arriba, subdivisiones abajo, alineados */}
+      <div className="w-full flex gap-3 justify-center flex-wrap">
+        {Array.from({ length: numerator }).map((_, beatIdx) => {
+          const isActiveBeat = isPlaying && currentBeat === beatIdx;
+          const subCount = subdivision.pattern.length;
+          const dotSize = 12;
+          const subDotSize = 8;
+          const totalWidth = dotSize + (subCount - 1) * (subDotSize + 4);
+
+          return (
+            <div key={beatIdx} className="flex flex-col items-start gap-2">
+              {/* Pulso arriba — alineado con primer subdivisión */}
+              <div style={{ width: totalWidth, display: 'flex', justifyContent: 'flex-start' }}>
+                <div className="rounded-full transition-all duration-75"
+                  style={{
+                    width: dotSize,
+                    height: dotSize,
+                    background: isActiveBeat
+                      ? (beatIdx === 0 ? '#f7a23c' : '#7c6af7')
+                      : '#2a2a38',
+                    boxShadow: isActiveBeat
+                      ? `0 0 8px ${beatIdx === 0 ? '#f7a23c80' : '#7c6af780'}`
+                      : 'none',
+                  }} />
               </div>
-            );
-          })}
-        </div>
+
+              {/* Subdivisiones abajo */}
+              <div className="flex items-center gap-1">
+                {subdivision.pattern.map((_, subIdx) => {
+                  const isActiveSub = isPlaying && currentBeat === beatIdx && currentSub === subIdx;
+                  const size = subIdx === 0 ? dotSize : subDotSize;
+                  return (
+                    <div key={subIdx} className="rounded-full transition-all duration-75"
+                      style={{
+                        width: size,
+                        height: size,
+                        background: isActiveSub
+                          ? (subIdx === 0
+                            ? (beatIdx === 0 ? '#f7a23c' : '#7c6af7')
+                            : '#a08af7')
+                          : '#2a2a38',
+                      }} />
+                  );
+                })}
+              </div>
+
+              {/* Número */}
+              <div className="text-xs text-center" style={{ color: '#3a3a50', width: totalWidth }}>
+                {beatIdx + 1}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Botones */}
