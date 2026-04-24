@@ -1,17 +1,66 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-// ─── METRÓNOMO ───────────────────────────────────────────────────────────────
+const BPM_PRESETS = [
+  { bpm: 40, name: 'Grave' },
+  { bpm: 55, name: 'Largo' },
+  { bpm: 66, name: 'Larghetto' },
+  { bpm: 72, name: 'Adagio' },
+  { bpm: 84, name: 'Andante' },
+  { bpm: 100, name: 'Moderato' },
+  { bpm: 116, name: 'Allegretto' },
+  { bpm: 132, name: 'Allegro' },
+  { bpm: 160, name: 'Vivace' },
+  { bpm: 184, name: 'Presto' },
+  { bpm: 208, name: 'Prestissimo' },
+];
+
+const DENOMINATORS = [1, 2, 4, 8, 16, 32];
+const DENOMINATOR_FIGURES = { 1: '𝅝', 2: '𝅗𝅥', 4: '♩', 8: '♪', 16: '𝅘𝅥𝅯', 32: '𝅘𝅥𝅰' };
+const DENOMINATOR_NAMES = { 1: 'Redonda', 2: 'Blanca', 4: 'Negra', 8: 'Corchea', 16: 'Semicorchea', 32: 'Fusa' };
+
+const SUBDIVISIONS = [
+  { id: 'quarter', label: '♩', name: 'Negra', pattern: [1], sizes: [12] },
+  { id: 'eighth', label: '♪♪', name: 'Corcheas', pattern: [1, 0.6], sizes: [12, 8] },
+  { id: 'triplet', label: '♪♪♪', name: 'Tresillos', pattern: [1, 0.6, 0.6], sizes: [12, 8, 8] },
+  { id: 'sixteenth', label: '♬♬', name: 'Semicorcheas', pattern: [1, 0.5, 0.5, 0.5], sizes: [12, 7, 7, 7] },
+  { id: 'quintuplet', label: '5', name: 'Quintillo', pattern: [1, 0.5, 0.5, 0.5, 0.5], sizes: [12, 7, 7, 7, 7] },
+  { id: 'sextuplet', label: '6', name: 'Sextillo', pattern: [1, 0.5, 0.5, 0.5, 0.5, 0.5], sizes: [12, 7, 7, 7, 7, 7] },
+  { id: 'septuplet', label: '7', name: 'Septillo', pattern: [1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5], sizes: [12, 7, 7, 7, 7, 7, 7] },
+  { id: 'galopa', label: '♩♪', name: 'Galopa', pattern: [1, 0.5], sizes: [14, 8], timing: [0.67, 0.33] },
+  { id: 'contra_galopa', label: '♪♩', name: 'Contra galopa', pattern: [1, 0.5], sizes: [8, 14], timing: [0.33, 0.67] },
+  { id: 'saltillo', label: '♪.♬', name: 'Saltillo', pattern: [1, 0.4], sizes: [14, 7], timing: [0.75, 0.25] },
+  { id: 'contra_saltillo', label: '♬♪.', name: 'Contra saltillo', pattern: [0.4, 1], sizes: [7, 14], timing: [0.25, 0.75] },
+  { id: 'swing', label: '↝', name: 'Swing', pattern: [1, 0.4, 0.6], sizes: [12, 7, 9], timing: [0.5, 0.17, 0.33] },
+];
+
+const ACCENT_OPTIONS = [
+  { value: 'strong', label: 'Fuerte', gain: 1.0 },
+  { value: 'medium', label: 'Medio', gain: 0.5 },
+  { value: 'weak', label: 'Débil', gain: 0.2 },
+];
+
+function getSubdivisionCount(sub) {
+  return sub.pattern.length;
+}
+
+function getSubdivisionTiming(sub) {
+  if (sub.timing) return sub.timing;
+  const count = sub.pattern.length;
+  return sub.pattern.map(() => 1 / count);
+}
+
 function Metronome() {
   const [bpm, setBpm] = useState(100);
   const [numerator, setNumerator] = useState(4);
   const [denominator, setDenominator] = useState(4);
-  const [subdivision, setSubdivision] = useState(1);
+  const [subdivision, setSubdivision] = useState(SUBDIVISIONS[0]);
   const [accentStrong, setAccentStrong] = useState('strong');
   const [accentWeak, setAccentWeak] = useState('medium');
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentBeat, setCurrentBeat] = useState(-1);
   const [currentSub, setCurrentSub] = useState(0);
+
   const audioCtx = useRef(null);
   const nextNoteTime = useRef(0);
   const schedulerRef = useRef(null);
@@ -19,19 +68,17 @@ function Metronome() {
   const subRef = useRef(0);
   const tapTimes = useRef([]);
 
-  const ACCENT_GAIN = { strong: 1.0, medium: 0.5, weak: 0.2 };
-  const DENOMINATORS = [1, 2, 4, 8, 16, 32];
-  const SUBDIVISIONS = [
-    { value: 1, label: 'Negras' },
-    { value: 2, label: 'Corcheas' },
-    { value: 3, label: 'Tresillos' },
-    { value: 4, label: 'Semicorcheas' },
-  ];
-  const ACCENT_OPTIONS = [
-    { value: 'strong', label: 'Fuerte' },
-    { value: 'medium', label: 'Medio' },
-    { value: 'weak', label: 'Débil' },
-  ];
+  const bpmRef = useRef(bpm);
+  const numeratorRef = useRef(numerator);
+  const subdivisionRef = useRef(subdivision);
+  const accentStrongRef = useRef(accentStrong);
+  const accentWeakRef = useRef(accentWeak);
+
+  useEffect(() => { bpmRef.current = bpm; }, [bpm]);
+  useEffect(() => { numeratorRef.current = numerator; }, [numerator]);
+  useEffect(() => { subdivisionRef.current = subdivision; }, [subdivision]);
+  useEffect(() => { accentStrongRef.current = accentStrong; }, [accentStrong]);
+  useEffect(() => { accentWeakRef.current = accentWeak; }, [accentWeak]);
 
   function getAudioCtx() {
     if (!audioCtx.current) audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
@@ -44,36 +91,48 @@ function Metronome() {
     const gainNode = ctx.createGain();
     osc.connect(gainNode);
     gainNode.connect(ctx.destination);
-    osc.frequency.value = gain >= 0.9 ? 1200 : gain >= 0.4 ? 900 : 600;
+    osc.frequency.value = gain >= 0.9 ? 1400 : gain >= 0.4 ? 1000 : 700;
     gainNode.gain.setValueAtTime(gain, time);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
     osc.start(time);
-    osc.stop(time + 0.05);
+    osc.stop(time + 0.04);
   }
 
   const scheduler = useCallback(() => {
     const ctx = getAudioCtx();
-    const secondsPerBeat = 60 / bpm;
-    const secondsPerSub = secondsPerBeat / subdivision;
+    const bpmNow = bpmRef.current;
+    const numNow = numeratorRef.current;
+    const subNow = subdivisionRef.current;
+    const strongNow = accentStrongRef.current;
+    const weakNow = accentWeakRef.current;
+    const timing = getSubdivisionTiming(subNow);
+    const secondsPerBeat = 60 / bpmNow;
 
     while (nextNoteTime.current < ctx.currentTime + 0.1) {
       const beat = beatRef.current;
       const sub = subRef.current;
+      const strongGain = ACCENT_OPTIONS.find(a => a.value === strongNow)?.gain || 1;
+      const weakGain = ACCENT_OPTIONS.find(a => a.value === weakNow)?.gain || 0.5;
+
       let gain;
-      if (beat === 0 && sub === 0) gain = ACCENT_GAIN[accentStrong];
-      else if (sub === 0) gain = ACCENT_GAIN[accentWeak];
+      if (beat === 0 && sub === 0) gain = strongGain;
+      else if (sub === 0) gain = weakGain;
       else gain = 0.15;
 
       scheduleClick(nextNoteTime.current, gain);
-      setCurrentBeat(beat);
-      setCurrentSub(sub);
 
-      nextNoteTime.current += secondsPerSub;
-      subRef.current = (sub + 1) % subdivision;
-      if (subRef.current === 0) beatRef.current = (beat + 1) % numerator;
+      const b = beat;
+      const s = sub;
+      const t = nextNoteTime.current;
+      const delay = Math.max(0, (t - ctx.currentTime) * 1000);
+      setTimeout(() => { setCurrentBeat(b); setCurrentSub(s); }, delay);
+
+      nextNoteTime.current += secondsPerBeat * timing[sub];
+      subRef.current = (sub + 1) % timing.length;
+      if (subRef.current === 0) beatRef.current = (beat + 1) % numNow;
     }
     schedulerRef.current = setTimeout(scheduler, 25);
-  }, [bpm, numerator, subdivision, accentStrong, accentWeak]);
+  }, []);
 
   useEffect(() => {
     if (isPlaying) {
@@ -81,7 +140,7 @@ function Metronome() {
       if (ctx.state === 'suspended') ctx.resume();
       beatRef.current = 0;
       subRef.current = 0;
-      nextNoteTime.current = ctx.currentTime;
+      nextNoteTime.current = ctx.currentTime + 0.05;
       scheduler();
     } else {
       clearTimeout(schedulerRef.current);
@@ -105,92 +164,120 @@ function Metronome() {
     }
   }
 
-  const secondsPerBeat = 60 / bpm;
-  const progress = isPlaying && currentBeat >= 0 ? ((currentBeat + (currentSub / subdivision)) / numerator) * 100 : 0;
+  const currentPreset = BPM_PRESETS.reduce((prev, curr) =>
+    Math.abs(curr.bpm - bpm) < Math.abs(prev.bpm - bpm) ? curr : prev
+  );
 
   return (
-    <div className="flex flex-col items-center gap-6 max-w-md mx-auto">
+    <div className="flex flex-col items-center gap-6 max-w-lg mx-auto">
+
       {/* BPM Display */}
       <div className="text-center">
-        <div className="text-7xl font-bold text-white font-display">{bpm}</div>
-        <div className="text-sm mt-1" style={{ color: '#5a5a70' }}>BPM</div>
+        <div className="text-7xl font-bold text-white font-display leading-none">{bpm}</div>
+        <div className="text-lg mt-1 font-medium" style={{ color: '#7c6af7' }}>{currentPreset.name}</div>
+        <div className="text-xs mt-0.5" style={{ color: '#5a5a70' }}>BPM</div>
       </div>
 
       {/* BPM Slider */}
-      <div className="w-full flex flex-col gap-2">
-        <div className="flex justify-between text-xs" style={{ color: '#5a5a70' }}>
-          <span>20</span><span>300</span>
-        </div>
+      <div className="w-full flex flex-col gap-3">
         <input type="range" min="20" max="300" value={bpm}
           onChange={e => setBpm(Number(e.target.value))}
-          className="w-full accent-purple-500" style={{ accentColor: '#7c6af7' }} />
-        <div className="flex gap-2 justify-center flex-wrap">
-          {[60, 80, 100, 120, 140, 160].map(b => (
-            <button key={b} onClick={() => setBpm(b)}
-              className="px-3 py-1 rounded-lg text-xs font-medium transition-all"
+          className="w-full" style={{ accentColor: '#7c6af7' }} />
+        <div className="flex justify-between text-xs" style={{ color: '#5a5a70' }}>
+          <span>20 Grave</span><span>Prestissimo 208</span>
+        </div>
+
+        {/* Presets */}
+        <div className="grid grid-cols-4 gap-1.5">
+          {BPM_PRESETS.map(p => (
+            <button key={p.bpm} onClick={() => setBpm(p.bpm)}
+              className="flex flex-col items-center py-2 px-1 rounded-xl text-center transition-all"
               style={{
-                background: bpm === b ? '#7c6af720' : '#22222e',
-                color: bpm === b ? '#7c6af7' : '#9090a8',
-                border: `1px solid ${bpm === b ? '#7c6af7' : '#333344'}`,
-              }}>{b}</button>
+                background: Math.abs(bpm - p.bpm) < 8 ? '#7c6af720' : '#22222e',
+                border: `1px solid ${Math.abs(bpm - p.bpm) < 8 ? '#7c6af7' : '#333344'}`,
+              }}>
+              <span className="text-xs font-bold" style={{ color: Math.abs(bpm - p.bpm) < 8 ? '#7c6af7' : '#e8e8f0' }}>{p.bpm}</span>
+              <span className="text-xs" style={{ color: '#5a5a70' }}>{p.name}</span>
+            </button>
           ))}
         </div>
       </div>
 
       {/* Compás */}
       <div className="w-full grid grid-cols-2 gap-4">
+        {/* Numerador */}
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-center" style={{ color: '#9090a8' }}>Numerador</label>
           <div className="flex items-center gap-2 justify-center">
             <button onClick={() => setNumerator(p => Math.max(1, p - 1))}
-              className="w-8 h-8 rounded-lg text-lg font-bold"
-              style={{ background: '#22222e', color: '#9090a8' }}>−</button>
-            <span className="text-2xl font-bold text-white w-8 text-center">{numerator}</span>
+              className="w-9 h-9 rounded-xl text-lg font-bold transition-all"
+              style={{ background: '#22222e', color: '#9090a8' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#2a2a38'}
+              onMouseLeave={e => e.currentTarget.style.background = '#22222e'}>−</button>
+            <span className="text-3xl font-bold text-white w-10 text-center">{numerator}</span>
             <button onClick={() => setNumerator(p => Math.min(16, p + 1))}
-              className="w-8 h-8 rounded-lg text-lg font-bold"
-              style={{ background: '#22222e', color: '#9090a8' }}>+</button>
+              className="w-9 h-9 rounded-xl text-lg font-bold transition-all"
+              style={{ background: '#22222e', color: '#9090a8' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#2a2a38'}
+              onMouseLeave={e => e.currentTarget.style.background = '#22222e'}>+</button>
           </div>
         </div>
+
+        {/* Denominador */}
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-center" style={{ color: '#9090a8' }}>Denominador</label>
-          <div className="flex flex-wrap gap-1 justify-center">
-            {DENOMINATORS.map(d => (
-              <button key={d} onClick={() => setDenominator(d)}
-                className="w-9 h-9 rounded-lg text-sm font-medium transition-all"
-                style={{
-                  background: denominator === d ? '#7c6af720' : '#22222e',
-                  color: denominator === d ? '#7c6af7' : '#9090a8',
-                  border: `1px solid ${denominator === d ? '#7c6af7' : '#333344'}`,
-                }}>{d}</button>
-            ))}
+          <div className="flex items-center gap-2 justify-center">
+            <button onClick={() => {
+              const idx = DENOMINATORS.indexOf(denominator);
+              if (idx > 0) setDenominator(DENOMINATORS[idx - 1]);
+            }}
+              className="w-9 h-9 rounded-xl text-lg font-bold transition-all"
+              style={{ background: '#22222e', color: '#9090a8' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#2a2a38'}
+              onMouseLeave={e => e.currentTarget.style.background = '#22222e'}>−</button>
+            <div className="flex flex-col items-center w-12">
+              <span className="text-2xl" style={{ color: '#7c6af7' }}>{DENOMINATOR_FIGURES[denominator]}</span>
+              <span className="text-xs font-bold text-white">{denominator}</span>
+              <span className="text-xs" style={{ color: '#5a5a70', fontSize: '10px' }}>{DENOMINATOR_NAMES[denominator]}</span>
+            </div>
+            <button onClick={() => {
+              const idx = DENOMINATORS.indexOf(denominator);
+              if (idx < DENOMINATORS.length - 1) setDenominator(DENOMINATORS[idx + 1]);
+            }}
+              className="w-9 h-9 rounded-xl text-lg font-bold transition-all"
+              style={{ background: '#22222e', color: '#9090a8' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#2a2a38'}
+              onMouseLeave={e => e.currentTarget.style.background = '#22222e'}>+</button>
           </div>
         </div>
       </div>
 
-      {/* Subdivisión */}
+      {/* Subdivisiones */}
       <div className="w-full flex flex-col gap-1.5">
         <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Subdivisión</label>
-        <div className="flex gap-2 flex-wrap">
+        <div className="grid grid-cols-4 gap-1.5">
           {SUBDIVISIONS.map(s => (
-            <button key={s.value} onClick={() => setSubdivision(s.value)}
-              className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
+            <button key={s.id} onClick={() => setSubdivision(s)}
+              className="flex flex-col items-center py-2 px-1 rounded-xl transition-all"
               style={{
-                background: subdivision === s.value ? '#7c6af720' : '#22222e',
-                color: subdivision === s.value ? '#7c6af7' : '#9090a8',
-                border: `1px solid ${subdivision === s.value ? '#7c6af7' : '#333344'}`,
-              }}>{s.label}</button>
+                background: subdivision.id === s.id ? '#7c6af720' : '#22222e',
+                border: `1px solid ${subdivision.id === s.id ? '#7c6af7' : '#333344'}`,
+              }}>
+              <span className="text-base" style={{ color: subdivision.id === s.id ? '#7c6af7' : '#e8e8f0' }}>{s.label}</span>
+              <span className="text-xs mt-0.5" style={{ color: '#5a5a70', fontSize: '10px' }}>{s.name}</span>
+            </button>
           ))}
         </div>
       </div>
 
-      {/* Acento fuerte y débil */}
+      {/* Acentos */}
       <div className="w-full grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Tiempo 1</label>
-          <div className="flex flex-col gap-1">
+          <div className="flex gap-1">
             {ACCENT_OPTIONS.map(a => (
               <button key={a.value} onClick={() => setAccentStrong(a.value)}
-                className="py-1.5 rounded-lg text-xs font-medium transition-all"
+                className="flex-1 py-1.5 rounded-lg text-xs font-medium transition-all"
                 style={{
                   background: accentStrong === a.value ? '#7c6af720' : '#22222e',
                   color: accentStrong === a.value ? '#7c6af7' : '#9090a8',
@@ -201,10 +288,10 @@ function Metronome() {
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Otros tiempos</label>
-          <div className="flex flex-col gap-1">
+          <div className="flex gap-1">
             {ACCENT_OPTIONS.map(a => (
               <button key={a.value} onClick={() => setAccentWeak(a.value)}
-                className="py-1.5 rounded-lg text-xs font-medium transition-all"
+                className="flex-1 py-1.5 rounded-lg text-xs font-medium transition-all"
                 style={{
                   background: accentWeak === a.value ? '#7c6af720' : '#22222e',
                   color: accentWeak === a.value ? '#7c6af7' : '#9090a8',
@@ -215,24 +302,50 @@ function Metronome() {
         </div>
       </div>
 
-      {/* Pulso visual */}
-      <div className="w-full flex gap-2 justify-center">
-        {Array.from({ length: numerator }).map((_, i) => (
-          <div key={i} className="flex-1 h-4 rounded-full transition-all"
-            style={{
-              background: isPlaying && currentBeat === i
-                ? i === 0 ? '#7c6af7' : '#a08af7'
-                : '#2a2a38',
-              transform: isPlaying && currentBeat === i ? 'scaleY(1.4)' : 'scaleY(1)',
-              maxWidth: '40px',
-            }} />
-        ))}
-      </div>
-
-      {/* Progreso del compás */}
-      <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: '#2a2a38' }}>
-        <div className="h-full rounded-full transition-all"
-          style={{ width: `${progress}%`, background: '#7c6af7' }} />
+      {/* Pulso visual — PULSO arriba, SUBDIVISIONES abajo, alineados */}
+      <div className="w-full flex flex-col gap-2">
+        <div className="flex gap-2 justify-center">
+          {Array.from({ length: numerator }).map((_, beatIdx) => {
+            const isActive = isPlaying && currentBeat === beatIdx;
+            const subCount = subdivision.pattern.length;
+            const totalWidth = subCount * 14 + (subCount - 1) * 4;
+            return (
+              <div key={beatIdx} className="flex flex-col items-start gap-1.5">
+                {/* Pulso arriba — alineado con el primer punto de la subdivisión */}
+                <div style={{ width: totalWidth, display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+                  <div className="rounded-full transition-all duration-75"
+                    style={{
+                      width: isActive ? 16 : 14,
+                      height: isActive ? 16 : 14,
+                      background: isActive
+                        ? (beatIdx === 0 ? '#f7a23c' : '#7c6af7')
+                        : '#2a2a38',
+                      boxShadow: isActive ? `0 0 8px ${beatIdx === 0 ? '#f7a23c' : '#7c6af7'}` : 'none',
+                    }} />
+                </div>
+                {/* Subdivisiones abajo */}
+                <div className="flex gap-1 items-center">
+                  {subdivision.pattern.map((size, subIdx) => {
+                    const isSubActive = isPlaying && currentBeat === beatIdx && currentSub === subIdx;
+                    const dotSize = subIdx === 0 ? 14 : Math.round(14 * size);
+                    return (
+                      <div key={subIdx} className="rounded-full transition-all duration-75"
+                        style={{
+                          width: dotSize,
+                          height: dotSize,
+                          background: isSubActive
+                            ? (subIdx === 0 ? (beatIdx === 0 ? '#f7a23c' : '#7c6af7') : '#a08af7')
+                            : '#2a2a38',
+                        }} />
+                    );
+                  })}
+                </div>
+                {/* Número de tiempo */}
+                <div className="text-xs text-center" style={{ color: '#3a3a50', width: totalWidth }}>{beatIdx + 1}</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Botones */}
@@ -242,13 +355,15 @@ function Metronome() {
           style={{
             background: isPlaying ? '#f75c6a20' : '#7c6af7',
             color: isPlaying ? '#f75c6a' : 'white',
-            border: isPlaying ? '2px solid #f75c6a' : 'none',
+            border: isPlaying ? '2px solid #f75c6a40' : 'none',
           }}>
           {isPlaying ? '⏹ Detener' : '▶ Iniciar'}
         </button>
         <button onClick={handleTap}
           className="px-6 py-4 rounded-2xl text-sm font-bold transition-all active:scale-95"
-          style={{ background: '#22222e', color: '#9090a8', border: '1px solid #333344' }}>
+          style={{ background: '#22222e', color: '#9090a8', border: '1px solid #333344' }}
+          onMouseEnter={e => e.currentTarget.style.background = '#2a2a38'}
+          onMouseLeave={e => e.currentTarget.style.background = '#22222e'}>
           TAP
         </button>
       </div>
@@ -256,15 +371,13 @@ function Metronome() {
   );
 }
 
-// ─── PÁGINA PRINCIPAL PRÁCTICA LIBRE ─────────────────────────────────────────
+// ─── PÁGINA PRÁCTICA LIBRE ───────────────────────────────────────────────────
 const TOOLS = [
-  { id: 'metronome', label: '🎵 Metrónomo', component: <Metronome /> },
-  // Aquí irán las demás herramientas
+  { id: 'metronome', label: '🎵 Metrónomo' },
 ];
 
 export default function PracticePage() {
   const [activeTool, setActiveTool] = useState('metronome');
-  const active = TOOLS.find(t => t.id === activeTool);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -273,7 +386,6 @@ export default function PracticePage() {
         <p className="text-sm mt-1" style={{ color: '#5a5a70' }}>Herramientas de práctica musical</p>
       </div>
 
-      {/* Tabs de herramientas */}
       <div className="flex gap-2 mb-8 flex-wrap">
         {TOOLS.map(tool => (
           <button key={tool.id} onClick={() => setActiveTool(tool.id)}
@@ -288,9 +400,8 @@ export default function PracticePage() {
         ))}
       </div>
 
-      {/* Herramienta activa */}
       <div className="p-6 rounded-2xl" style={{ background: '#16161d', border: '1px solid #2a2a38' }}>
-        {active?.component}
+        {activeTool === 'metronome' && <Metronome />}
       </div>
     </div>
   );
