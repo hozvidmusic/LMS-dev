@@ -10,12 +10,140 @@ import { useCalendar } from '@/context/CalendarContext';
 import { supabase } from '@/supabase/client';
 import toast from 'react-hot-toast';
 import {
-  MdDashboard, MdLibraryMusic, MdMenuBook,
+  MdDashboard, MdLibraryMusic, MdMenuBook, MdAnnouncement,
   MdLibraryBooks, MdPerson, MdPeople, MdSchool, MdLogout,
   MdCheckCircle, MdRadioButtonUnchecked, MdChevronLeft,
-  MdAssignment, MdExpandMore, MdExpandLess, MdVisibility, MdEvent
+  MdAssignment, MdExpandMore, MdExpandLess, MdVisibility,
+  MdEvent, MdClose
 } from 'react-icons/md';
 import Image from 'next/image';
+
+const TYPE_CONFIG = {
+  class: { label: '🎵 Clase', color: '#7c6af7' },
+  event: { label: '🎉 Evento', color: '#4ade80' },
+};
+const MODALITY_CONFIG = {
+  presential: { label: '🏫 Presencial', color: '#3ca2f7' },
+  virtual: { label: '💻 Virtual', color: '#f7a23c' },
+};
+
+function formatEventDate(d) {
+  const date = new Date(d);
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  if (date.toDateString() === now.toDateString()) return 'Hoy';
+  if (date.toDateString() === tomorrow.toDateString()) return 'Mañana';
+  return date.toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short' });
+}
+function formatTime(d) {
+  return new Date(d).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+}
+function formatFullDate(d) {
+  return new Date(d).toLocaleDateString('es-CO', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+function EventPopup({ event, onClose }) {
+  if (!event) return null;
+  const cfg = TYPE_CONFIG[event.type] || TYPE_CONFIG.class;
+  const mod = event.modality ? MODALITY_CONFIG[event.modality] : null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-4"
+      onClick={onClose}>
+      <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.6)' }} />
+      <div className="relative w-full max-w-sm rounded-2xl p-5 flex flex-col gap-4"
+        style={{ background: '#1c1c26', border: `1px solid ${cfg.color}50` }}
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1">
+            <h3 className="font-bold text-white text-lg leading-tight">{event.title}</h3>
+            <div className="flex gap-2 mt-2 flex-wrap">
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{ background: cfg.color + '20', color: cfg.color }}>{cfg.label}</span>
+              {mod && (
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{ background: mod.color + '20', color: mod.color }}>{mod.label}</span>
+              )}
+              {event.target === 'group' && event.groups?.name && (
+                <span className="text-xs px-2 py-0.5 rounded-full"
+                  style={{ background: '#7c6af720', color: '#7c6af7' }}>👥 {event.groups.name}</span>
+              )}
+              {event.target === 'subgroup' && event.subgroups?.name && (
+                <span className="text-xs px-2 py-0.5 rounded-full"
+                  style={{ background: '#fbbf2420', color: '#fbbf24' }}>🔸 {event.subgroups.name}</span>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg flex-shrink-0"
+            style={{ color: '#5a5a70' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#e8e8f0'}
+            onMouseLeave={e => e.currentTarget.style.color = '#5a5a70'}>
+            <MdClose size={20} />
+          </button>
+        </div>
+        <div className="p-3 rounded-xl" style={{ background: '#0f0f13', border: '1px solid #2a2a38' }}>
+          <p className="text-sm font-semibold capitalize" style={{ color: cfg.color }}>
+            {formatFullDate(event.starts_at)}
+          </p>
+          <p className="text-sm text-white mt-1">
+            🕐 {formatTime(event.starts_at)}
+            {event.ends_at ? ` — ${formatTime(event.ends_at)}` : ''}
+          </p>
+        </div>
+        {event.description && (
+          <p className="text-sm leading-relaxed" style={{ color: '#9090a8' }}>{event.description}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function UpcomingEventsList({ events, pendingRatings }) {
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const now = new Date();
+  const upcoming = events.filter(e => new Date(e.starts_at) > now).slice(0, 5);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between px-3 py-1.5">
+        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#5a5a70' }}>
+          Próximos eventos
+        </span>
+        {pendingRatings > 0 && (
+          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full"
+            style={{ background: '#fbbf24', color: '#0f0f13' }}>
+            🔔 {pendingRatings}
+          </span>
+        )}
+      </div>
+      {upcoming.length === 0 ? (
+        <p className="text-xs px-3 pb-2" style={{ color: '#3a3a50' }}>Sin eventos próximos</p>
+      ) : (
+        <div className="flex flex-col gap-0.5">
+          {upcoming.map(ev => {
+            const cfg = TYPE_CONFIG[ev.type] || TYPE_CONFIG.class;
+            return (
+              <button key={ev.id} onClick={() => setSelectedEvent(ev)}
+                className="flex items-start gap-2 px-3 py-2 rounded-xl text-left transition-all w-full"
+                onMouseEnter={e => e.currentTarget.style.background = '#22222e'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+                  style={{ background: cfg.color }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate" style={{ color: '#c0c0d0' }}>{ev.title}</p>
+                  <p className="text-xs" style={{ color: '#5a5a70' }}>
+                    {formatEventDate(ev.starts_at)} · {formatTime(ev.starts_at)}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {selectedEvent && <EventPopup event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
+    </div>
+  );
+}
 
 export default function Sidebar({ isOpen, onClose }) {
   const { profile } = useAuth();
@@ -150,7 +278,7 @@ function LessonSidebar({ courseId, lessonId, profile, onLogout, onClose }) {
   );
 }
 
-function NavItem({ href, icon, label, onClose, announceBadge, calendarBadge }) {
+function NavItem({ href, icon, label, onClose, badge }) {
   const pathname = usePathname();
   const isActive = pathname === href || pathname.startsWith(href + '/');
   return (
@@ -158,31 +286,21 @@ function NavItem({ href, icon, label, onClose, announceBadge, calendarBadge }) {
       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
         isActive ? 'bg-[#7c6af720] text-[#7c6af7]' : 'text-[#9090a8] hover:text-white hover:bg-[#22222e]'
       }`}>
-      <span className="relative flex-shrink-0">
-        {icon}
-        {/* Badge periódico para anuncios */}
-        {announceBadge > 0 && (
-          <span className="absolute -top-2 -right-2 text-xs font-bold leading-none"
-            style={{ color: '#f75c6a' }}>
-            📰{announceBadge > 9 ? '9+' : announceBadge}
-          </span>
-        )}
-        {/* Badge campanita para calendario */}
-        {calendarBadge > 0 && (
-          <span className="absolute -top-2 -right-2 text-xs font-bold leading-none"
-            style={{ color: '#fbbf24' }}>
-            🔔{calendarBadge > 9 ? '9+' : calendarBadge}
-          </span>
-        )}
-      </span>
+      {icon}
       <span className="flex-1">{label}</span>
+      {badge > 0 && (
+        <span className="text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center"
+          style={{ background: '#f75c6a', color: 'white' }}>
+          {badge > 9 ? '9+' : badge}
+        </span>
+      )}
     </Link>
   );
 }
 
-function StudentViewMenu({ onClose, unreadCount, pendingRatings }) {
+function StudentViewMenu({ onClose, unreadCount, upcomingEvents, pendingRatings }) {
   const pathname = usePathname();
-  const studentPaths = ['/courses', '/profile', '/resources', '/glossary', '/announcements', '/calendar'];
+  const studentPaths = ['/courses', '/profile', '/resources', '/glossary', '/announcements'];
   const isAnyActive = studentPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
   const [open, setOpen] = useState(isAnyActive);
   const totalPending = unreadCount + pendingRatings;
@@ -213,8 +331,10 @@ function StudentViewMenu({ onClose, unreadCount, pendingRatings }) {
           <NavItem href="/profile" icon={<MdPerson className="text-lg" />} label="Mi Perfil" onClose={onClose} />
           <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
           <NavItem href="/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
-          <NavItem href="/announcements" icon={<MdEvent className="text-lg" />} label="Anuncios" onClose={onClose} announceBadge={unreadCount} />
-          <NavItem href="/calendar" icon={<MdEvent className="text-lg" />} label="Calendario" onClose={onClose} calendarBadge={pendingRatings} />
+          <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} badge={unreadCount} />
+          <div className="mt-2 pt-2" style={{ borderTop: '1px solid #2a2a38' }}>
+            <UpcomingEventsList events={upcomingEvents} pendingRatings={pendingRatings} />
+          </div>
         </div>
       )}
     </div>
@@ -224,7 +344,7 @@ function StudentViewMenu({ onClose, unreadCount, pendingRatings }) {
 function SidebarContent({ profile, onLogout, onClose }) {
   const isAdmin = profile?.role === 'admin';
   const { unreadCount } = useAnnouncements();
-  const { pendingRatings } = useCalendar();
+  const { pendingRatings, upcomingEvents } = useCalendar();
 
   return (
     <div className="flex flex-col h-full p-4">
@@ -238,7 +358,7 @@ function SidebarContent({ profile, onLogout, onClose }) {
 
         {isAdmin ? (
           <>
-            <StudentViewMenu onClose={onClose} unreadCount={unreadCount} pendingRatings={pendingRatings} />
+            <StudentViewMenu onClose={onClose} unreadCount={unreadCount} upcomingEvents={upcomingEvents} pendingRatings={pendingRatings} />
             <div className="mt-4 mb-2 px-3">
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#5a5a70' }}>
                 Administración
@@ -249,7 +369,7 @@ function SidebarContent({ profile, onLogout, onClose }) {
             <NavItem href="/admin/courses" icon={<MdSchool className="text-lg" />} label="Cursos" onClose={onClose} />
             <NavItem href="/admin/resources" icon={<MdLibraryMusic className="text-lg" />} label="Recursos" onClose={onClose} />
             <NavItem href="/admin/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
-            <NavItem href="/admin/announcements" icon={<MdEvent className="text-lg" />} label="Anuncios" onClose={onClose} />
+            <NavItem href="/admin/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} />
             <NavItem href="/admin/calendar" icon={<MdEvent className="text-lg" />} label="Calendario" onClose={onClose} />
           </>
         ) : (
@@ -258,8 +378,10 @@ function SidebarContent({ profile, onLogout, onClose }) {
             <NavItem href="/profile" icon={<MdPerson className="text-lg" />} label="Mi Perfil" onClose={onClose} />
             <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
             <NavItem href="/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
-            <NavItem href="/announcements" icon={<MdEvent className="text-lg" />} label="Anuncios" onClose={onClose} announceBadge={unreadCount} />
-            <NavItem href="/calendar" icon={<MdEvent className="text-lg" />} label="Calendario" onClose={onClose} calendarBadge={pendingRatings} />
+            <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} badge={unreadCount} />
+            <div className="mt-2 pt-2" style={{ borderTop: '1px solid #2a2a38' }}>
+              <UpcomingEventsList events={upcomingEvents} pendingRatings={pendingRatings} />
+            </div>
           </>
         )}
       </nav>

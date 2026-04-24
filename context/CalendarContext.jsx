@@ -1,23 +1,27 @@
 'use client';
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getPendingRatingsCount, getUpcomingCount } from '@/services/calendarService';
+import { getEventsForStudent } from '@/services/calendarService';
 
-const CalendarContext = createContext({ pendingRatings: 0, upcomingToday: 0, refresh: () => {} });
+const CalendarContext = createContext({ pendingRatings: 0, upcomingEvents: [], refresh: () => {} });
 
 export function CalendarProvider({ children }) {
   const { profile } = useAuth();
   const [pendingRatings, setPendingRatings] = useState(0);
-  const [upcomingToday, setUpcomingToday] = useState(0);
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
 
   const refresh = useCallback(async () => {
     if (!profile) return;
-    const [pending, upcoming] = await Promise.all([
-      getPendingRatingsCount(profile.id),
-      getUpcomingCount(profile.id),
-    ]);
+    const data = await getEventsForStudent(profile.id);
+    const now = new Date();
+    const pending = data.filter(e => {
+      const isPast = new Date(e.starts_at) <= now;
+      const alreadyRated = e.event_ratings?.some(r => r.user_id === profile.id);
+      return isPast && !alreadyRated;
+    }).length;
+    const upcoming = data.filter(e => new Date(e.starts_at) > now);
     setPendingRatings(pending);
-    setUpcomingToday(upcoming);
+    setUpcomingEvents(upcoming);
   }, [profile]);
 
   useEffect(() => {
@@ -27,7 +31,7 @@ export function CalendarProvider({ children }) {
   }, [refresh]);
 
   return (
-    <CalendarContext.Provider value={{ pendingRatings, upcomingToday, refresh }}>
+    <CalendarContext.Provider value={{ pendingRatings, upcomingEvents, refresh }}>
       {children}
     </CalendarContext.Provider>
   );
