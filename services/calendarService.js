@@ -26,7 +26,7 @@ export async function getEventsForStudent(userId) {
 
   const { data, error } = await supabaseAdmin
     .from('calendar_events')
-    .select('*, profiles(display_name), groups(name), subgroups(name), event_ratings(rating, user_id)')
+    .select('*, profiles(display_name), groups(name), subgroups(name), event_ratings(rating, user_id, attended)')
     .order('starts_at', { ascending: true });
   if (error) throw error;
 
@@ -48,10 +48,10 @@ export async function getEventRatings(eventId) {
   return data;
 }
 
-export async function createEvent({ title, description, type, starts_at, ends_at, target, group_id, subgroup_id, created_by }) {
+export async function createEvent({ title, description, type, modality, starts_at, ends_at, target, group_id, subgroup_id, created_by }) {
   const { data, error } = await supabaseAdmin
     .from('calendar_events')
-    .insert({ title, description, type, starts_at, ends_at: ends_at || null, target, group_id: group_id || null, subgroup_id: subgroup_id || null, created_by })
+    .insert({ title, description, type, modality: type === 'class' ? modality : null, starts_at, ends_at: ends_at || null, target, group_id: group_id || null, subgroup_id: subgroup_id || null, created_by })
     .select().single();
   if (error) throw error;
   return data;
@@ -68,9 +68,31 @@ export async function deleteEvent(id) {
   if (error) throw error;
 }
 
-export async function rateEvent({ event_id, user_id, rating }) {
+export async function rateEvent({ event_id, user_id, rating, attended }) {
   const { error } = await supabaseAdmin
     .from('event_ratings')
-    .upsert({ event_id, user_id, rating }, { onConflict: 'event_id,user_id' });
+    .upsert({ event_id, user_id, rating, attended }, { onConflict: 'event_id,user_id' });
   if (error) throw error;
+}
+
+export async function getPendingRatingsCount(userId) {
+  const events = await getEventsForStudent(userId);
+  const now = new Date();
+  return events.filter(e => {
+    const isPast = new Date(e.starts_at) <= now;
+    const alreadyRated = e.event_ratings?.some(r => r.user_id === userId);
+    return isPast && !alreadyRated;
+  }).length;
+}
+
+export async function getUpcomingCount(userId) {
+  const events = await getEventsForStudent(userId);
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(23, 59, 59);
+  return events.filter(e => {
+    const d = new Date(e.starts_at);
+    return d > now && d <= tomorrow;
+  }).length;
 }

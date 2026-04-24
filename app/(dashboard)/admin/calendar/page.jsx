@@ -8,22 +8,27 @@ import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import toast from 'react-hot-toast';
-import { MdAdd, MdDelete, MdEdit, MdChevronLeft, MdChevronRight, MdStar, MdStarBorder } from 'react-icons/md';
+import { MdAdd, MdDelete, MdEdit, MdChevronLeft, MdChevronRight } from 'react-icons/md';
 
-const EMPTY_FORM = { title: '', description: '', type: 'class', starts_at: '', ends_at: '', target: 'all', group_id: '', subgroup_id: '' };
+const EMPTY_FORM = { title: '', description: '', type: 'class', modality: 'presential', starts_at: '', ends_at: '', target: 'all', group_id: '', subgroup_id: '' };
 
 const TYPE_CONFIG = {
   class: { label: '🎵 Clase', color: '#7c6af7' },
-  important: { label: '⭐ Fecha importante', color: '#fbbf24' },
+  event: { label: '🎉 Evento', color: '#4ade80' },
 };
 
-function TargetBadge({ event }) {
-  if (event.target === 'all') return <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#4ade8020', color: '#4ade80' }}>🌐 General</span>;
-  if (event.target === 'group') return <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#7c6af720', color: '#7c6af7' }}>👥 {event.groups?.name}</span>;
-  return <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fbbf2420', color: '#fbbf24' }}>🔸 {event.subgroups?.name}</span>;
+const MODALITY_CONFIG = {
+  presential: { label: '🏫 Presencial', color: '#3ca2f7' },
+  virtual: { label: '💻 Virtual', color: '#f7a23c' },
+};
+
+function TargetBadge({ ev }) {
+  if (ev.target === 'all') return <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#4ade8020', color: '#4ade80' }}>🌐 General</span>;
+  if (ev.target === 'group') return <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#7c6af720', color: '#7c6af7' }}>👥 {ev.groups?.name}</span>;
+  return <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fbbf2420', color: '#fbbf24' }}>🔸 {ev.subgroups?.name}</span>;
 }
 
-function Stars({ rating, size = 16 }) {
+function Stars({ rating, size = 14 }) {
   return (
     <span className="flex gap-0.5">
       {[1,2,3,4,5].map(s => (
@@ -38,6 +43,7 @@ function EventForm({ form, setForm, groups, subgroups }) {
     <div className="flex flex-col gap-4">
       <Input label="Título" value={form.title} required
         onChange={e => setForm(p => ({...p, title: e.target.value}))} />
+
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Tipo</label>
         <div className="flex gap-2">
@@ -54,6 +60,26 @@ function EventForm({ form, setForm, groups, subgroups }) {
           ))}
         </div>
       </div>
+
+      {form.type === 'class' && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Modalidad</label>
+          <div className="flex gap-2">
+            {Object.entries(MODALITY_CONFIG).map(([val, cfg]) => (
+              <button key={val} type="button" onClick={() => setForm(p => ({...p, modality: val}))}
+                className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
+                style={{
+                  background: form.modality === val ? cfg.color + '20' : '#0f0f13',
+                  border: `1px solid ${form.modality === val ? cfg.color : '#333344'}`,
+                  color: form.modality === val ? cfg.color : '#9090a8',
+                }}>
+                {cfg.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Descripción (opcional)</label>
         <textarea value={form.description} rows={2}
@@ -61,6 +87,7 @@ function EventForm({ form, setForm, groups, subgroups }) {
           className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
           style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
       </div>
+
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Inicio</label>
@@ -77,6 +104,7 @@ function EventForm({ form, setForm, groups, subgroups }) {
             style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
         </div>
       </div>
+
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Dirigido a</label>
         <div className="flex gap-2">
@@ -92,6 +120,7 @@ function EventForm({ form, setForm, groups, subgroups }) {
           ))}
         </div>
       </div>
+
       {form.target === 'group' && (
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Grupo</label>
@@ -155,7 +184,8 @@ export default function AdminCalendar() {
     e.preventDefault();
     try {
       await updateEvent(selected.id, {
-        title: selected.title, description: selected.description, type: selected.type,
+        title: selected.title, description: selected.description,
+        type: selected.type, modality: selected.type === 'class' ? selected.modality : null,
         starts_at: new Date(selected.starts_at).toISOString(),
         ends_at: selected.ends_at ? new Date(selected.ends_at).toISOString() : null,
         target: selected.target, group_id: selected.group_id || null, subgroup_id: selected.subgroup_id || null,
@@ -196,16 +226,11 @@ export default function AdminCalendar() {
   }
 
   function isPast(ev) { return new Date(ev.starts_at) < new Date(); }
+  function formatTime(d) { return new Date(d).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }); }
 
   const selectedDayEvents = selectedDay ? getEventsForDay(selectedDay) : [];
-
-  function formatTime(d) {
-    return new Date(d).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-  }
-
-  const avgRating = ratings.length > 0
-    ? (ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length).toFixed(1)
-    : null;
+  const avgRating = ratings.length > 0 ? (ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length).toFixed(1) : null;
+  const attendedCount = ratings.filter(r => r.attended).length;
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -217,7 +242,6 @@ export default function AdminCalendar() {
         <Button onClick={() => setShowCreate(true)}><MdAdd /> Nuevo evento</Button>
       </div>
 
-      {/* Navegación mes */}
       <div className="flex items-center justify-between mb-4">
         <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))}
           className="p-2 rounded-xl transition-all" style={{ color: '#9090a8' }}
@@ -234,7 +258,6 @@ export default function AdminCalendar() {
         </button>
       </div>
 
-      {/* Cuadrícula */}
       <Card>
         <div className="grid grid-cols-7 mb-2">
           {dayNames.map(d => (
@@ -271,7 +294,6 @@ export default function AdminCalendar() {
         </div>
       </Card>
 
-      {/* Eventos del día seleccionado */}
       {selectedDay && (
         <div className="mt-4">
           <h3 className="font-semibold text-white mb-3">
@@ -289,26 +311,30 @@ export default function AdminCalendar() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-semibold text-white">{ev.title}</h4>
-                        <span className="text-xs" style={{ color: '#5a5a70' }}>{TYPE_CONFIG[ev.type]?.label}</span>
-                        <TargetBadge event={ev} />
-                        {past && (
+                        <span className="text-xs px-2 py-0.5 rounded-full"
+                          style={{ background: TYPE_CONFIG[ev.type]?.color + '20', color: TYPE_CONFIG[ev.type]?.color }}>
+                          {TYPE_CONFIG[ev.type]?.label}
+                        </span>
+                        {ev.type === 'class' && ev.modality && (
                           <span className="text-xs px-2 py-0.5 rounded-full"
-                            style={{ background: '#5a5a7020', color: '#5a5a70' }}>Pasado</span>
+                            style={{ background: MODALITY_CONFIG[ev.modality]?.color + '20', color: MODALITY_CONFIG[ev.modality]?.color }}>
+                            {MODALITY_CONFIG[ev.modality]?.label}
+                          </span>
                         )}
+                        <TargetBadge ev={ev} />
+                        {past && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#5a5a7020', color: '#5a5a70' }}>Pasado</span>}
                       </div>
                       {ev.description && <p className="text-sm mt-1" style={{ color: '#9090a8' }}>{ev.description}</p>}
                       <p className="text-xs mt-1" style={{ color: '#5a5a70' }}>
-                        {formatTime(ev.starts_at)}{ev.ends_at ? ` — ${formatTime(ev.ends_at)}` : ''}
+                        🕐 {formatTime(ev.starts_at)}{ev.ends_at ? ` — ${formatTime(ev.ends_at)}` : ''}
                       </p>
                     </div>
                     <div className="flex gap-1 flex-shrink-0 flex-wrap justify-end">
                       {past && (
-                        <Button size="sm" variant="secondary" onClick={() => openRatings(ev)}>
-                          ⭐ Evaluaciones
-                        </Button>
+                        <Button size="sm" variant="secondary" onClick={() => openRatings(ev)}>⭐ Evaluaciones</Button>
                       )}
                       <Button size="sm" variant="secondary" onClick={() => {
-                        const toLocal = (iso) => iso ? new Date(iso).toISOString().slice(0,16) : '';
+                        const toLocal = iso => iso ? new Date(iso).toISOString().slice(0,16) : '';
                         setSelected({ ...ev, starts_at: toLocal(ev.starts_at), ends_at: toLocal(ev.ends_at) });
                         setShowEdit(true);
                       }}><MdEdit /></Button>
@@ -322,7 +348,6 @@ export default function AdminCalendar() {
         </div>
       )}
 
-      {/* Modal crear */}
       <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Nuevo evento">
         <form onSubmit={handleCreate} className="flex flex-col gap-4">
           <EventForm form={form} setForm={setForm} groups={groups} subgroups={subgroups} />
@@ -333,7 +358,6 @@ export default function AdminCalendar() {
         </form>
       </Modal>
 
-      {/* Modal editar */}
       {selected && showEdit && (
         <Modal isOpen onClose={() => setShowEdit(false)} title="Editar evento">
           <form onSubmit={handleEdit} className="flex flex-col gap-4">
@@ -346,51 +370,56 @@ export default function AdminCalendar() {
         </Modal>
       )}
 
-      {/* Modal evaluaciones */}
       {selected && showRatings && (
         <Modal isOpen onClose={() => setShowRatings(false)} title={`Evaluaciones: ${selected.title}`}>
           <div className="flex flex-col gap-4">
-            {loadingRatings ? (
-              <p style={{ color: '#5a5a70' }}>Cargando...</p>
-            ) : ratings.length === 0 ? (
-              <p className="text-center py-8" style={{ color: '#5a5a70' }}>
-                Ningún alumno ha evaluado este evento todavía.
-              </p>
+            {loadingRatings ? <p style={{ color: '#5a5a70' }}>Cargando...</p> :
+            ratings.length === 0 ? (
+              <p className="text-center py-8" style={{ color: '#5a5a70' }}>Ningún alumno ha evaluado este evento todavía.</p>
             ) : (
               <>
-                {/* Resumen */}
-                <div className="p-4 rounded-xl text-center" style={{ background: '#0f0f13', border: '1px solid #2a2a38' }}>
-                  <p className="text-4xl font-bold text-white mb-1">{avgRating}</p>
-                  <Stars rating={Math.round(avgRating)} size={24} />
-                  <p className="text-sm mt-2" style={{ color: '#5a5a70' }}>
-                    {ratings.length} evaluación{ratings.length !== 1 ? 'es' : ''}
-                  </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-4 rounded-xl text-center" style={{ background: '#0f0f13', border: '1px solid #2a2a38' }}>
+                    <p className="text-3xl font-bold text-white mb-1">{avgRating}</p>
+                    <div className="flex justify-center"><Stars rating={Math.round(avgRating)} size={20} /></div>
+                    <p className="text-xs mt-1" style={{ color: '#5a5a70' }}>{ratings.length} evaluación{ratings.length !== 1 ? 'es' : ''}</p>
+                  </div>
+                  <div className="p-4 rounded-xl text-center" style={{ background: '#0f0f13', border: '1px solid #2a2a38' }}>
+                    <p className="text-3xl font-bold" style={{ color: '#4ade80' }}>{attendedCount}</p>
+                    <p className="text-xs mt-1" style={{ color: '#5a5a70' }}>de {ratings.length} asistieron</p>
+                    <p className="text-3xl font-bold mt-1" style={{ color: '#f75c6a' }}>{ratings.length - attendedCount}</p>
+                    <p className="text-xs" style={{ color: '#5a5a70' }}>no asistieron</p>
+                  </div>
                 </div>
-                {/* Distribución */}
                 <div className="flex flex-col gap-1.5">
                   {[5,4,3,2,1].map(star => {
-                    const count = ratings.filter(r => r.rating === star).length;
-                    const pct = ratings.length > 0 ? (count / ratings.length) * 100 : 0;
+                    const attended = ratings.filter(r => r.attended);
+                    const count = attended.filter(r => r.rating === star).length;
+                    const pct = attended.length > 0 ? (count / attended.length) * 100 : 0;
                     return (
                       <div key={star} className="flex items-center gap-2">
                         <span className="text-xs w-2" style={{ color: '#fbbf24' }}>{star}</span>
                         <span style={{ color: '#fbbf24', fontSize: 14 }}>★</span>
                         <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: '#2a2a38' }}>
-                          <div className="h-full rounded-full transition-all"
-                            style={{ width: `${pct}%`, background: '#fbbf24' }} />
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: '#fbbf24' }} />
                         </div>
                         <span className="text-xs w-4 text-right" style={{ color: '#5a5a70' }}>{count}</span>
                       </div>
                     );
                   })}
                 </div>
-                {/* Lista individual */}
-                <div className="flex flex-col gap-2 mt-2">
+                <div className="flex flex-col gap-2">
                   {ratings.map(r => (
                     <div key={r.id} className="flex items-center justify-between px-3 py-2 rounded-xl"
                       style={{ background: '#0f0f13', border: '1px solid #2a2a38' }}>
-                      <span className="text-sm text-white">{r.profiles?.display_name}</span>
-                      <Stars rating={r.rating} size={14} />
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-white">{r.profiles?.display_name}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full"
+                          style={{ background: r.attended ? '#4ade8020' : '#f75c6a20', color: r.attended ? '#4ade80' : '#f75c6a' }}>
+                          {r.attended ? '✓ Asistió' : '✗ No asistió'}
+                        </span>
+                      </div>
+                      {r.attended && <Stars rating={r.rating} size={14} />}
                     </div>
                   ))}
                 </div>
