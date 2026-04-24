@@ -87,7 +87,7 @@ export default function Dashboard() {
     if (attended === null) { toast.error('¿Asististe al evento?'); return; }
     if (attended && ratingValue === 0) { toast.error('Selecciona una calificación'); return; }
     try {
-      await rateEvent({ event_id: currentRating.id, user_id: profile.id, rating: attended ? ratingValue : 0, attended });
+      await rateEvent({ event_id: currentRating.id, user_id: profile.id, rating: attended ? ratingValue : 0, attended: attended });
       toast.success('¡Gracias por tu respuesta!');
       const remaining = pendingRatings.filter(e => e.id !== currentRating.id);
       setPendingRatings(remaining);
