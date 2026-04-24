@@ -47,7 +47,7 @@ export default function EventRatingModal() {
       const data = await getEventsForStudent(profile.id);
       const now = new Date();
       const past = data.filter(e => {
-        const isPast = new Date(e.starts_at) <= now;
+        const isPast = e.ends_at ? new Date(e.ends_at) <= now : new Date(e.starts_at) <= now;
         const alreadyRated = e.event_ratings?.some(r => r.user_id === profile.id);
         return isPast && !alreadyRated;
       });
