@@ -14,7 +14,7 @@ import {
   MdLibraryBooks, MdPerson, MdPeople, MdSchool, MdLogout,
   MdCheckCircle, MdRadioButtonUnchecked, MdChevronLeft,
   MdAssignment, MdExpandMore, MdExpandLess, MdVisibility,
-  MdEvent, MdClose
+  MdEvent, MdClose, MdMusicNote
 } from 'react-icons/md';
 import Image from 'next/image';
 
@@ -332,6 +332,8 @@ function StudentViewMenu({ onClose, unreadCount, upcomingEvents, pendingRatings 
           <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
           <NavItem href="/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
           <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} badge={unreadCount} />
+            <NavItem href="/practice" icon={<MdMusicNote className="text-lg" />} label="Práctica libre" onClose={onClose} />
+            <NavItem href="/practice" icon={<MdMusicNote className="text-lg" />} label="Práctica libre" onClose={onClose} />
           <div className="mt-2 pt-2" style={{ borderTop: '1px solid #2a2a38' }}>
             <UpcomingEventsList events={upcomingEvents} pendingRatings={pendingRatings} />
           </div>
@@ -379,6 +381,8 @@ function SidebarContent({ profile, onLogout, onClose }) {
             <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
             <NavItem href="/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
             <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} badge={unreadCount} />
+            <NavItem href="/practice" icon={<MdMusicNote className="text-lg" />} label="Práctica libre" onClose={onClose} />
+            <NavItem href="/practice" icon={<MdMusicNote className="text-lg" />} label="Práctica libre" onClose={onClose} />
             <div className="mt-2 pt-2" style={{ borderTop: '1px solid #2a2a38' }}>
               <UpcomingEventsList events={upcomingEvents} pendingRatings={pendingRatings} />
             </div>
