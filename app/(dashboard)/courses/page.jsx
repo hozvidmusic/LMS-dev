@@ -126,10 +126,7 @@ function CourseCard({ course, profile, router }) {
                 );
               })}
             </div>
-          )}
-          {courseEvals.length > 0 && (
-            <div className="flex flex-col gap-2 mt-4">
-              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#5a5a70' }}>Evaluaciones del curso</p>
+          )}>Evaluaciones del curso</p>
               {courseEvals.map(ev => (
                 <button key={ev.id}
                   onClick={() => router.push(`/evaluations/${ev.id}`)}
