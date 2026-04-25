@@ -1,116 +1,54 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { getLessonsByCourse, getContentsByLesson, getItemsByContent } from '@/services/courseService';
 import { useAuth } from '@/context/AuthContext';
+import { getLessonsByCourse, getContentsByLesson } from '@/services/courseService';
 import { supabase } from '@/supabase/client';
+import { MdCheckCircle, MdRadioButtonUnchecked, MdExpandMore, MdExpandLess } from 'react-icons/md';
 import Card from '@/components/ui/Card';
-import { MdCheckCircle, MdExpandMore, MdExpandLess, MdRadioButtonUnchecked } from 'react-icons/md';
-
-function extractDriveId(url) {
-  if (!url) return null;
-  const match = url.match(/drive\.google\.com\/file\/d\/([^/?\s]+)/);
-  if (match) return match[1];
-  const match2 = url.match(/drive\.google\.com\/open\?id=([^&\s]+)/);
-  if (match2) return match2[1];
-  return null;
-}
-
-function toImageUrl(url) {
-  const id = extractDriveId(url);
-  if (id) return `https://lh3.googleusercontent.com/d/${id}`;
-  return url;
-}
-
-function toPreviewUrl(url) {
-  const id = extractDriveId(url);
-  if (id) return `https://drive.google.com/file/d/${id}/preview`;
-  return url;
-}
-
-function toDownloadUrl(url) {
-  const id = extractDriveId(url);
-  if (id) return `https://drive.google.com/uc?export=download&id=${id}`;
-  return url;
-}
-
-function extractYoutubeId(url) {
-  if (!url) return null;
-  const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
-  return match ? match[1] : null;
-}
 
 function ItemRenderer({ item }) {
-  const url = item.file_url || item.value;
   switch (item.type) {
     case 'text':
-      return <div className="text-sm leading-relaxed" style={{ color: '#c0c0d0' }}
-        dangerouslySetInnerHTML={{ __html: item.value }} />;
-    case 'youtube':
-    case 'video': {
-      const videoId = extractYoutubeId(url);
-      return videoId ? (
-        <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-          <iframe className="absolute inset-0 w-full h-full rounded-xl"
-            src={`https://www.youtube.com/embed/${videoId}`} allowFullScreen title={item.title} />
-        </div>
-      ) : <p style={{ color: '#f87171' }}>URL de YouTube inválida</p>;
-    }
-    case 'image':
-      return <img src={toImageUrl(url)} alt={item.title}
-        className="w-full rounded-xl object-contain max-h-96"
-        onError={e => { e.target.src = toPreviewUrl(url); }} />;
+      return <div className="prose prose-invert max-w-none text-sm" style={{ color: '#c8c8d8' }}
+        dangerouslySetInnerHTML={{ __html: item.content }} />;
+    case 'video':
+      return <div className="rounded-xl overflow-hidden aspect-video">
+        <iframe src={item.content} className="w-full h-full" allowFullScreen
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+      </div>;
     case 'audio':
-      return (
-        <iframe src={toPreviewUrl(url)} className="w-full rounded-xl"
-          style={{ height: '80px', border: 'none' }} allow="autoplay" />
-      );
+      return <audio controls src={item.content} className="w-full rounded-xl" />;
+    case 'image':
+      return <img src={item.content} alt={item.title || ''} className="rounded-xl max-w-full" />;
     case 'pdf':
-      return (
-        <iframe src={toPreviewUrl(url)} className="w-full rounded-xl"
-          style={{ height: '500px', border: 'none' }} />
-      );
+      return <iframe src={item.content} className="w-full rounded-xl" style={{ height: 500 }} />;
     case 'link':
-      return <a href={url} target="_blank" rel="noopener noreferrer"
+      return <a href={item.content} target="_blank" rel="noopener noreferrer"
         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
         style={{ background: '#7c6af720', color: '#7c6af7', border: '1px solid #7c6af740' }}>
-        🔗 Abrir enlace
+        Abrir enlace →
       </a>;
-    case 'file':
-      return <a href={toDownloadUrl(url)} target="_blank" rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
-        style={{ background: '#7c6af720', color: '#7c6af7', border: '1px solid #7c6af740' }}>
-        ⬇️ Descargar {item.file_name || 'archivo'}
-      </a>;
-    default: return null;
+    default:
+      return null;
   }
 }
 
 function ContentBlock({ content, defaultOpen }) {
   const [expanded, setExpanded] = useState(defaultOpen);
   const [items, setItems] = useState([]);
-  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (defaultOpen) loadItems();
-  }, []);
-
-  async function loadItems() {
-    if (loaded) return;
-    const data = await getItemsByContent(content.id);
-    setItems(data.filter(i => i.status === 'active'));
-    setLoaded(true);
-  }
-
-  async function handleToggle() {
-    if (!loaded) await loadItems();
-    setExpanded(p => !p);
-  }
+    if (!expanded) return;
+    supabase.from('items').select('*').eq('content_id', content.id)
+      .eq('status', 'active').order('sort_order', { ascending: true })
+      .then(({ data }) => setItems(data || []));
+  }, [expanded, content.id]);
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #2a2a38' }}>
-      <button onClick={handleToggle}
-        className="w-full flex items-center gap-3 px-5 py-4 text-left transition-all"
+      <button onClick={() => setExpanded(p => !p)}
+        className="w-full flex items-center gap-3 px-5 py-4 text-left transition-colors"
         style={{ background: expanded ? '#1c1c26' : '#16161f' }}
         onMouseEnter={e => e.currentTarget.style.background = '#1c1c26'}
         onMouseLeave={e => e.currentTarget.style.background = expanded ? '#1c1c26' : '#16161f'}>
@@ -124,21 +62,16 @@ function ContentBlock({ content, defaultOpen }) {
           )}
         </div>
       </button>
-
       {expanded && (
         <div className="flex flex-col gap-5 px-5 py-5" style={{ background: '#12121a' }}>
-          {items.length === 0 ? (
-            <p className="text-sm text-center py-4" style={{ color: '#5a5a70' }}>
-              Este contenido no tiene material disponible aún.
-            </p>
-          ) : items.map(item => (
-            <div key={item.id}>
-              {item.title && (
-                <p className="text-sm font-semibold text-white mb-2">{item.title}</p>
-              )}
-              <ItemRenderer item={item} />
-            </div>
-          ))}
+          {items.length === 0
+            ? <p className="text-sm text-center py-4" style={{ color: '#5a5a70' }}>Este contenido no tiene material disponible aún.</p>
+            : items.map(item => (
+              <div key={item.id}>
+                {item.title && <p className="text-sm font-semibold text-white mb-2">{item.title}</p>}
+                <ItemRenderer item={item} />
+              </div>
+            ))}
         </div>
       )}
     </div>
@@ -164,19 +97,12 @@ export default function LessonPage() {
         setContents(allContents.filter(c => c.status === 'active'));
       }
       if (profile) {
-        const { data } = await supabase
-          .from('lesson_progress')
-          .select('lesson_id')
-          .eq('user_id', profile.id)
-          .eq('completed', true);
+        const { data } = await supabase.from('lesson_progress').select('lesson_id')
+          .eq('user_id', profile.id).eq('completed', true);
         setCompleted((data || []).map(d => d.lesson_id));
-        const { data: courseData } = await supabase
-          .from('courses')
-          .select('color')
-          .eq('id', courseId)
-          .single();
+        const { data: courseData } = await supabase.from('courses').select('color')
+          .eq('id', courseId).single();
         if (courseData?.color) setColor(courseData.color);
-      }
       }
     }
     load();
@@ -187,10 +113,8 @@ export default function LessonPage() {
     setMarking(true);
     const isCompleted = completed.includes(lessonId);
     if (isCompleted) {
-      await supabase.from('lesson_progress')
-        .delete()
-        .eq('user_id', profile.id)
-        .eq('lesson_id', lessonId);
+      await supabase.from('lesson_progress').delete()
+        .eq('user_id', profile.id).eq('lesson_id', lessonId);
       setCompleted(p => p.filter(id => id !== lessonId));
     } else {
       await supabase.from('lesson_progress')
@@ -228,15 +152,12 @@ export default function LessonPage() {
           {isCompleted ? 'Completada' : 'Marcar como completada'}
         </button>
       </div>
-
       <div className="flex flex-col gap-3">
-        {contents.length === 0 ? (
-          <Card><p className="text-center py-8" style={{ color: '#5a5a70' }}>
-            Esta lección no tiene contenidos disponibles aún.
-          </p></Card>
-        ) : contents.map((content, index) => (
-          <ContentBlock key={content.id} content={content} defaultOpen={index === 0} />
-        ))}
+        {contents.length === 0
+          ? <Card><p className="text-center py-8" style={{ color: '#5a5a70' }}>Esta lección no tiene contenidos disponibles aún.</p></Card>
+          : contents.map((content, index) => (
+            <ContentBlock key={content.id} content={content} defaultOpen={index === 0} />
+          ))}
       </div>
     </div>
   );
