@@ -23,15 +23,6 @@ const PRESET_COLORS = [
   '#f73cf0','#f7e23c','#3cf7f0','#a2f73c','#f7603c',
 ];
 
-const INSTRUMENTS = [
-  { value: 'voice', label: '🎤 Voz / Canto' },
-  { value: 'drums', label: '🥁 Batería' },
-  { value: 'latin_percussion', label: '🪘 Percusión latina' },
-  { value: 'piano', label: '🎹 Piano / Teclado' },
-  { value: 'guitar', label: '🎸 Guitarra' },
-  { value: 'bass', label: '🎸 Bajo' },
-  { value: 'theory', label: '🎵 Teoría general' },
-];
 
 function ColorPicker({ value, onChange }) {
   return (
@@ -56,58 +47,22 @@ function ColorPicker({ value, onChange }) {
   );
 }
 
-function InstrumentPicker({ value, onChange }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Instrumento / Categoría</label>
-      <div className="grid grid-cols-2 gap-2">
-        {INSTRUMENTS.map(inst => (
-          <button key={inst.value} type="button" onClick={() => onChange(inst.value)}
-            className="px-3 py-2 rounded-xl text-sm text-left transition-all"
-            style={{
-              background: value === inst.value ? '#7c6af720' : '#0f0f13',
-              border: `1px solid ${value === inst.value ? '#7c6af7' : '#333344'}`,
-              color: value === inst.value ? '#7c6af7' : '#9090a8',
-            }}>
-            {inst.label}
-          </button>
-        ))}
-      </div>
-    </div>
+
   );
 }
 
-async function saveInstrument(courseId, instrument) {
-  if (!instrument) return;
-  await supabaseAdmin.from('course_instrument').upsert(
-    { course_id: courseId, instrument },
-    { onConflict: 'course_id' }
-  );
-}
-
-async function getInstrument(courseId) {
-  const { data } = await supabaseAdmin
-    .from('course_instrument').select('instrument').eq('course_id', courseId).single();
-  return data?.instrument || '';
-}
 
 export default function AdminCourses() {
   const [courses, setCourses] = useState([]);
-  const [instruments, setInstruments] = useState({});
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [selected, setSelected] = useState(null);
-  const [form, setForm] = useState({ title: '', description: '', color: '#7c6af7', icon: '🎵', instrument: '' });
+  const [form, setForm] = useState({ title: '', description: '', color: '#7c6af7', icon: '🎵' });
   const router = useRouter();
 
   async function load() {
     const c = await getCourses();
     setCourses(c);
-    const instMap = {};
-    await Promise.all(c.map(async course => {
-      instMap[course.id] = await getInstrument(course.id);
-    }));
-    setInstruments(instMap);
   }
 
   useEffect(() => { load(); }, []);
@@ -115,25 +70,22 @@ export default function AdminCourses() {
   async function handleCreate(e) {
     e.preventDefault();
     const course = await createCourse({ title: form.title, description: form.description, color: form.color, icon: form.icon });
-    if (form.instrument) await saveInstrument(course.id, form.instrument);
     toast.success('Curso creado');
     setShowCreate(false);
-    setForm({ title: '', description: '', color: '#7c6af7', icon: '🎵', instrument: '' });
+    setForm({ title: '', description: '', color: '#7c6af7', icon: '🎵' });
     load();
   }
 
   async function handleEdit(e) {
     e.preventDefault();
     await updateCourse(selected.id, { title: selected.title, description: selected.description, color: selected.color, icon: selected.icon });
-    if (selected.instrument !== undefined) await saveInstrument(selected.id, selected.instrument);
     toast.success('Curso actualizado');
     setShowEdit(false);
     load();
   }
 
   async function handleOpenEdit(course) {
-    const instrument = await getInstrument(course.id);
-    setSelected({ ...course, instrument });
+    setSelected({ ...course });
     setShowEdit(true);
   }
 
@@ -162,10 +114,6 @@ export default function AdminCourses() {
     }
   }
 
-  const getInstrumentLabel = (courseId) => {
-    const val = instruments[courseId];
-    return INSTRUMENTS.find(i => i.value === val)?.label || '';
-  };
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -199,11 +147,6 @@ export default function AdminCourses() {
                   {course.description && (
                     <p className="text-xs" style={{ color: '#5a5a70' }}>{course.description}</p>
                   )}
-                  {getInstrumentLabel(course.id) && (
-                    <span className="text-xs px-2 py-0.5 rounded-full"
-                      style={{ background: '#7c6af720', color: '#7c6af7' }}>
-                      {getInstrumentLabel(course.id)}
-                    </span>
                   )}
                 </div>
               </div>
@@ -247,7 +190,6 @@ export default function AdminCourses() {
             </div>
           </div>
           <ColorPicker value={form.color} onChange={c => setForm(p => ({...p, color: c}))} />
-          <InstrumentPicker value={form.instrument} onChange={v => setForm(p => ({...p, instrument: v}))} />
           <div className="flex gap-3 pt-2">
             <Button type="submit" className="flex-1">Crear curso</Button>
             <Button type="button" variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
@@ -278,7 +220,6 @@ export default function AdminCourses() {
               </div>
             </div>
             <ColorPicker value={selected.color || '#7c6af7'} onChange={c => setSelected(p => ({...p, color: c}))} />
-            <InstrumentPicker value={selected.instrument || ''} onChange={v => setSelected(p => ({...p, instrument: v}))} />
             <div className="flex gap-3 pt-2">
               <Button type="submit" className="flex-1">Guardar</Button>
               <Button type="button" variant="secondary" onClick={() => setShowEdit(false)}>Cancelar</Button>
