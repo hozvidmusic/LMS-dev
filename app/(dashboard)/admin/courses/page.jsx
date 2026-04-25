@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCourses, createCourse, updateCourse, toggleCourseStatus, duplicateCourse } from '@/services/courseService';
 import { supabase } from '@/supabase/client';
-import { createClient } from '@supabase/supabase-js';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
@@ -12,17 +11,10 @@ import Input from '@/components/ui/Input';
 import toast from 'react-hot-toast';
 import { MdAdd, MdEdit, MdChevronRight, MdDelete, MdCopyAll } from 'react-icons/md';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_KEY,
-  { auth: { persistSession: false, autoRefreshToken: false } }
-);
-
 const PRESET_COLORS = [
   '#7c6af7','#f75c6a','#f7a23c','#3cf7a2','#3ca2f7',
   '#f73cf0','#f7e23c','#3cf7f0','#a2f73c','#f7603c',
 ];
-
 
 function ColorPicker({ value, onChange }) {
   return (
@@ -47,11 +39,6 @@ function ColorPicker({ value, onChange }) {
   );
 }
 
-
-  );
-}
-
-
 export default function AdminCourses() {
   const [courses, setCourses] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -69,7 +56,7 @@ export default function AdminCourses() {
 
   async function handleCreate(e) {
     e.preventDefault();
-    const course = await createCourse({ title: form.title, description: form.description, color: form.color, icon: form.icon });
+    await createCourse({ title: form.title, description: form.description, color: form.color, icon: form.icon });
     toast.success('Curso creado');
     setShowCreate(false);
     setForm({ title: '', description: '', color: '#7c6af7', icon: '🎵' });
@@ -82,11 +69,6 @@ export default function AdminCourses() {
     toast.success('Curso actualizado');
     setShowEdit(false);
     load();
-  }
-
-  async function handleOpenEdit(course) {
-    setSelected({ ...course });
-    setShowEdit(true);
   }
 
   async function handleToggle(course) {
@@ -113,7 +95,6 @@ export default function AdminCourses() {
       toast.error('Error al duplicar', { id: t });
     }
   }
-
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -143,15 +124,12 @@ export default function AdminCourses() {
                   <h3 className="font-semibold text-white">{course.title}</h3>
                   <Badge status={course.status} />
                 </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  {course.description && (
-                    <p className="text-xs" style={{ color: '#5a5a70' }}>{course.description}</p>
-                  )}
-                  )}
-                </div>
+                {course.description && (
+                  <p className="text-xs mt-0.5" style={{ color: '#5a5a70' }}>{course.description}</p>
+                )}
               </div>
               <div className="flex items-center gap-2 flex-wrap justify-end">
-                <Button size="sm" variant="secondary" onClick={() => handleOpenEdit(course)}><MdEdit /></Button>
+                <Button size="sm" variant="secondary" onClick={() => { setSelected({...course}); setShowEdit(true); }}><MdEdit /></Button>
                 <Button size="sm" variant="secondary" onClick={() => handleDuplicate(course)}><MdCopyAll /></Button>
                 <Button size="sm" variant={course.status === 'active' ? 'danger' : 'secondary'}
                   onClick={() => handleToggle(course)}>
@@ -168,6 +146,7 @@ export default function AdminCourses() {
         ))}
       </div>
 
+      {/* Modal crear */}
       <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Nuevo curso">
         <form onSubmit={handleCreate} className="flex flex-col gap-4">
           <Input label="Título del curso" value={form.title} required
@@ -197,6 +176,7 @@ export default function AdminCourses() {
         </form>
       </Modal>
 
+      {/* Modal editar */}
       {selected && (
         <Modal isOpen={showEdit} onClose={() => setShowEdit(false)} title="Editar curso">
           <form onSubmit={handleEdit} className="flex flex-col gap-4">
