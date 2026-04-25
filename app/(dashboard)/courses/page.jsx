@@ -23,7 +23,6 @@ export default function CoursesPage() {
         setCourses(active);
       } else {
         const ids = await getCoursesForStudent(profile.id);
-        console.log('ids:', ids, 'active:', active.map(c => c.id));
         setCourses(active.filter(c => ids.includes(c.id)));
       }
       setLoading(false);
@@ -86,9 +85,7 @@ function CourseCard({ course, profile, router }) {
           {course.icon || '🎵'}
         </div>
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <h2 className="font-semibold text-white text-lg">{course.title}</h2>
-          </div>
+          <h2 className="font-semibold text-white text-lg mb-1">{course.title}</h2>
           {course.description && (
             <p className="text-sm" style={{ color: '#5a5a70' }}>{course.description}</p>
           )}
@@ -125,22 +122,6 @@ function CourseCard({ course, profile, router }) {
                   </button>
                 );
               })}
-            </div>
-          )}>Evaluaciones del curso</p>
-              {courseEvals.map(ev => (
-                <button key={ev.id}
-                  onClick={() => router.push(`/evaluations/${ev.id}`)}
-                  className="flex items-center justify-between p-3 rounded-xl text-left transition-all w-full"
-                  style={{ background: '#0f0f13', border: '1px solid #2a2a38' }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = color}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = '#2a2a38'}>
-                  <div className="flex items-center gap-2">
-                    <span>📝</span>
-                    <span className="text-sm" style={{ color: '#c0c0d0' }}>{ev.title}</span>
-                  </div>
-                  <MdChevronRight style={{ color: '#5a5a70' }} />
-                </button>
-              ))}
             </div>
           )}
         </div>
