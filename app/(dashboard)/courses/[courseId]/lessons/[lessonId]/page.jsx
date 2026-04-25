@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getLessonsByCourse, getContentsByLesson, getItemsByContent } from '@/services/courseService';
-import { getAssignmentsForLesson, getEvaluation } from '@/services/evaluationService';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/supabase/client';
 import Card from '@/components/ui/Card';
@@ -153,7 +152,6 @@ export default function LessonPage() {
   const [contents, setContents] = useState([]);
   const [completed, setCompleted] = useState([]);
   const [marking, setMarking] = useState(false);
-  const [lessonEval, setLessonEval] = useState(null);
   const [color, setColor] = useState('#7c6af7');
 
   useEffect(() => {
@@ -178,11 +176,6 @@ export default function LessonPage() {
           .eq('id', courseId)
           .single();
         if (courseData?.color) setColor(courseData.color);
-      }
-      const assignments = await getAssignmentsForLesson(lessonId);
-      if (assignments?.length > 0) {
-        const ev = await getEvaluation(assignments[0].evaluation_id);
-        setLessonEval(ev);
       }
       }
     }
@@ -245,19 +238,6 @@ export default function LessonPage() {
           <ContentBlock key={content.id} content={content} defaultOpen={index === 0} />
         ))}
       </div>
-
-      {lessonEval && (
-        <div className="mt-8 rounded-2xl p-6" style={{ background: '#16161d', border: '1px solid #2a2a38' }}>
-          <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#5a5a70' }}>Evaluación de la lección</p>
-          <h3 className="text-lg font-bold text-white mb-1">{lessonEval.title}</h3>
-          {lessonEval.description && <p className="text-sm mb-4" style={{ color: '#9090a8' }}>{lessonEval.description}</p>}
-          <a href={`/evaluations/${lessonEval.id}`}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium"
-            style={{ background: '#7c6af7', color: '#fff' }}>
-            📝 Iniciar evaluación
-          </a>
-        </div>
-      )}
     </div>
   );
 }

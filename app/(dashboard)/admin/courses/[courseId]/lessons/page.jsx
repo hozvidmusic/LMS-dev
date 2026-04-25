@@ -15,7 +15,6 @@ import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import toast from 'react-hot-toast';
-import { getEvaluations, assignEvaluation, removeAssignment, getAssignmentsForCourse } from '@/services/evaluationService';
 import { MdAdd, MdEdit, MdChevronLeft, MdDelete, MdExpandMore, MdExpandLess, MdDragIndicator, MdCopyAll } from 'react-icons/md';
 
 const ITEM_TYPES = [
@@ -382,9 +381,6 @@ export default function AdminLessons() {
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showContents, setShowContents] = useState(false);
-  const [courseEvaluations, setCourseEvaluations] = useState([]);
-  const [allEvaluations, setAllEvaluations] = useState([]);
-  const [showAddEval, setShowAddEval] = useState(false);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ title: '', description: '' });
   const dragLesson = useRef(null);
