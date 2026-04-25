@@ -18,32 +18,46 @@ import RichTextEditor from '@/components/editor/RichTextEditor';
 
 function ItemForm({ contentId, onSave, onCancel }) {
   const TYPES = [
-    { id: 'text', label: '📝 Texto' }, { id: 'video', label: '🎬 Video' },
-    { id: 'audio', label: '🎵 Audio' }, { id: 'image', label: '🖼️ Imagen' },
-    { id: 'pdf', label: '📄 PDF' }, { id: 'link', label: '🔗 Enlace' },
+    { id: 'text', label: '📝 Texto' },
+    { id: 'youtube', label: '▶️ YouTube' },
+    { id: 'video', label: '🎬 Video' },
+    { id: 'audio', label: '🎵 Audio' },
+    { id: 'image', label: '🖼️ Imagen' },
+    { id: 'pdf', label: '📄 PDF' },
+    { id: 'link', label: '🔗 Enlace' },
   ];
-  const [form, setForm] = useState({ type: 'text', title: '', content: '' });
+  const [form, setForm] = useState({ type: 'text', title: '', value: '', file_url: '' });
+
   async function handleSubmit(e) {
     e.preventDefault();
     const { data: existing } = await supabase.from('items').select('id').eq('content_id', contentId);
     const sort_order = (existing?.length || 0) + 1;
-    const { error } = await supabase.from('items')
-      .insert({ content_id: contentId, ...form, sort_order });
-    if (error) { toast.error('Error al crear ítem'); return; }
+    const payload = {
+      content_id: contentId,
+      type: form.type,
+      title: form.title || null,
+      sort_order,
+      value: form.type === 'text' ? form.value : form.file_url,
+      file_url: form.type !== 'text' ? form.file_url : null,
+    };
+    const { error } = await supabase.from('items').insert(payload);
+    if (error) { toast.error('Error al crear: ' + error.message); return; }
     toast.success('Ítem creado');
     onSave();
   }
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 p-4 rounded-xl"
       style={{ background: '#0f0f13', border: '1px solid #2a2a38' }}>
       <div className="flex gap-2 flex-wrap">
         {TYPES.map(t => (
-          <button key={t.id} type="button" onClick={() => setForm(p => ({ ...p, type: t.id }))}
+          <button key={t.id} type="button"
+            onClick={() => setForm(p => ({ ...p, type: t.id, value: '', file_url: '' }))}
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
             style={{
               background: form.type === t.id ? '#7c6af720' : '#22222e',
               color: form.type === t.id ? '#7c6af7' : '#9090a8',
-              border: `1px solid ${form.type === t.id ? '#7c6af740' : 'transparent'}`,
+              border: 'border: 1px solid ' + (form.type === t.id ? '#7c6af740' : 'transparent'),
             }}>
             {t.label}
           </button>
@@ -52,9 +66,13 @@ function ItemForm({ contentId, onSave, onCancel }) {
       <Input label="Título (opcional)" value={form.title}
         onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
       {form.type === 'text'
-        ? <RichTextEditor value={form.content} onChange={v => setForm(p => ({ ...p, content: v }))} />
-        : <Input label="URL" value={form.content} required
-            onChange={e => setForm(p => ({ ...p, content: e.target.value }))} />}
+        ? <RichTextEditor value={form.value} onChange={v => setForm(p => ({ ...p, value: v }))} />
+        : <Input
+            label={form.type === 'youtube' ? 'URL de YouTube' : 'URL del archivo'}
+            value={form.file_url}
+            required
+            onChange={e => setForm(p => ({ ...p, file_url: e.target.value }))} />
+      }
       <div className="flex gap-2">
         <Button type="submit" size="sm" className="flex-1">Guardar ítem</Button>
         <Button type="button" size="sm" variant="secondary" onClick={onCancel}>Cancelar</Button>
