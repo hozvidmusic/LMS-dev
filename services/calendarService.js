@@ -15,7 +15,16 @@ export async function getAllEvents() {
   return data;
 }
 
-export async function getEventsForStudent(userId) {
+export async function getEventsForStudent(userId, role) {
+  const { data, error } = await supabaseAdmin
+    .from('calendar_events')
+    .select('*, profiles(display_name), groups(name), subgroups(name), event_ratings(rating, user_id, attended)')
+    .order('starts_at', { ascending: true });
+  if (error) throw error;
+
+  // El admin ve todos los eventos
+  if (role === 'admin') return data;
+
   const { data: pg } = await supabaseAdmin
     .from('profile_groups').select('group_id').eq('user_id', userId).single();
   const { data: psg } = await supabaseAdmin
@@ -23,12 +32,6 @@ export async function getEventsForStudent(userId) {
 
   const groupId = pg?.group_id || null;
   const subgroupIds = (psg || []).map(s => s.subgroup_id);
-
-  const { data, error } = await supabaseAdmin
-    .from('calendar_events')
-    .select('*, profiles(display_name), groups(name), subgroups(name), event_ratings(rating, user_id, attended)')
-    .order('starts_at', { ascending: true });
-  if (error) throw error;
 
   return data.filter(e => {
     if (e.target === 'all') return true;
@@ -75,8 +78,8 @@ export async function rateEvent({ event_id, user_id, rating, attended }) {
   if (error) throw error;
 }
 
-export async function getPendingRatingsCount(userId) {
-  const events = await getEventsForStudent(userId);
+export async function getPendingRatingsCount(userId, role) {
+  const events = await getEventsForStudent(userId, role);
   const now = new Date();
   return events.filter(e => {
     const isPast = new Date(e.starts_at) <= now;
@@ -85,8 +88,8 @@ export async function getPendingRatingsCount(userId) {
   }).length;
 }
 
-export async function getUpcomingCount(userId) {
-  const events = await getEventsForStudent(userId);
+export async function getUpcomingCount(userId, role) {
+  const events = await getEventsForStudent(userId, role);
   const now = new Date();
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);

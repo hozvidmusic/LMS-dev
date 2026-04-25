@@ -35,7 +35,7 @@ export default function AnnouncementsPage() {
 
   useEffect(() => {
     if (!profile) return;
-    getAnnouncementsForStudent(profile.id)
+    getAnnouncementsForStudent(profile.id, profile.role)
       .then(data => { setAnnouncements(data); setLoading(false); });
     const interval = setInterval(() => {
       setAnnouncements(prev => prev.filter(a => !isExpired(a)));

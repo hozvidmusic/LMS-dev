@@ -8,6 +8,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import toast from 'react-hot-toast';
+import { supabase } from '@/supabase/client';
 import { MdPerson, MdLock, MdSchool } from 'react-icons/md';
 
 export default function ProfilePage() {
@@ -33,12 +34,13 @@ export default function ProfilePage() {
     if (newPassword !== confirmPassword) { toast.error('Las contraseñas no coinciden'); return; }
     setLoading(true);
     try {
-      await changeCurrentUserPassword(newPassword);
-      toast.success('Contraseña actualizada');
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast.success('Contraseña actualizada correctamente');
       setNewPassword('');
       setConfirmPassword('');
-    } catch {
-      toast.error('Error al cambiar contraseña. Vuelve a iniciar sesión e intenta de nuevo.');
+    } catch (err) {
+      toast.error('Error: ' + (err.message || 'Vuelve a iniciar sesión e intenta de nuevo'));
     } finally {
       setLoading(false);
     }

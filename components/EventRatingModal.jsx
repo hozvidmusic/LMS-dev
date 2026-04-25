@@ -44,7 +44,7 @@ export default function EventRatingModal() {
   useEffect(() => {
     if (!profile || loaded) return;
     async function load() {
-      const data = await getEventsForStudent(profile.id);
+      const data = await getEventsForStudent(profile.id, profile.role);
       const now = new Date();
       const past = data.filter(e => {
         const isPast = e.ends_at ? new Date(e.ends_at) <= now : new Date(e.starts_at) <= now;

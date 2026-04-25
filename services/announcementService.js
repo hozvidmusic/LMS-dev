@@ -15,7 +15,16 @@ export async function getAllAnnouncements() {
   return data;
 }
 
-export async function getAnnouncementsForStudent(userId) {
+export async function getAnnouncementsForStudent(userId, role) {
+  const { data, error } = await supabaseAdmin
+    .from('announcements')
+    .select('*, profiles(display_name), groups(name), subgroups(name)')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+
+  // El admin ve todos los anuncios sin filtrar
+  if (role === 'admin') return data;
+
   const { data: pg } = await supabaseAdmin
     .from('profile_groups').select('group_id').eq('user_id', userId).single();
   const { data: psg } = await supabaseAdmin
@@ -24,12 +33,6 @@ export async function getAnnouncementsForStudent(userId) {
   const groupId = pg?.group_id || null;
   const subgroupIds = (psg || []).map(s => s.subgroup_id);
   const now = new Date().toISOString();
-
-  const { data, error } = await supabaseAdmin
-    .from('announcements')
-    .select('*, profiles(display_name), groups(name), subgroups(name)')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
 
   return data.filter(a => {
     if (a.expires_at && a.expires_at < now) return false;
@@ -40,8 +43,8 @@ export async function getAnnouncementsForStudent(userId) {
   });
 }
 
-export async function getUnreadCountForStudent(userId) {
-  const announcements = await getAnnouncementsForStudent(userId);
+export async function getUnreadCountForStudent(userId, role) {
+  const announcements = await getAnnouncementsForStudent(userId, role);
   return announcements.filter(a => !a.read_by?.includes(userId)).length;
 }
 
