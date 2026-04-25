@@ -10,7 +10,7 @@ import { useCalendar } from '@/context/CalendarContext';
 import { supabase } from '@/supabase/client';
 import toast from 'react-hot-toast';
 import {
-  MdDashboard, MdLibraryMusic, MdMenuBook, MdAnnouncement,
+  MdDashboard, MdAnnouncement,
   MdLibraryBooks, MdPerson, MdPeople, MdSchool, MdLogout,
   MdCheckCircle, MdRadioButtonUnchecked, MdChevronLeft,
   MdAssignment, MdExpandMore, MdExpandLess, MdVisibility, MdQuiz,
@@ -300,7 +300,7 @@ function NavItem({ href, icon, label, onClose, badge }) {
 
 function StudentViewMenu({ onClose, unreadCount, upcomingEvents, pendingRatings }) {
   const pathname = usePathname();
-  const studentPaths = ['/courses', '/profile', '/resources', '/glossary', '/announcements'];
+  const studentPaths = ['/courses', '/profile', '/announcements'];
   const isAnyActive = studentPaths.some(p => pathname === p || pathname.startsWith(p + '/'));
   const [open, setOpen] = useState(isAnyActive);
   const totalPending = unreadCount + pendingRatings;
@@ -329,8 +329,6 @@ function StudentViewMenu({ onClose, unreadCount, upcomingEvents, pendingRatings 
         <div className="ml-3 mt-1 flex flex-col gap-1 pl-3" style={{ borderLeft: '1px solid #2a2a38' }}>
           <NavItem href="/courses" icon={<MdLibraryBooks className="text-lg" />} label="Mis Cursos" onClose={onClose} />
           <NavItem href="/profile" icon={<MdPerson className="text-lg" />} label="Mi Perfil" onClose={onClose} />
-          <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
-          <NavItem href="/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
           <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} badge={unreadCount} />
           <div className="mt-2 pt-2" style={{ borderTop: '1px solid #2a2a38' }}>
             <UpcomingEventsList events={upcomingEvents} pendingRatings={pendingRatings} />
@@ -367,8 +365,6 @@ function SidebarContent({ profile, onLogout, onClose }) {
             <NavItem href="/admin/students" icon={<MdPeople className="text-lg" />} label="Alumnos" onClose={onClose} />
             <NavItem href="/admin/assignments" icon={<MdAssignment className="text-lg" />} label="Asignaciones" onClose={onClose} />
             <NavItem href="/admin/courses" icon={<MdSchool className="text-lg" />} label="Cursos" onClose={onClose} />
-            <NavItem href="/admin/resources" icon={<MdLibraryMusic className="text-lg" />} label="Recursos" onClose={onClose} />
-            <NavItem href="/admin/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
             <NavItem href="/admin/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} />
             <NavItem href="/admin/calendar" icon={<MdEvent className="text-lg" />} label="Calendario" onClose={onClose} />
             <NavItem href="/admin/evaluations" icon={<MdQuiz className="text-lg" />} label="Evaluaciones" onClose={onClose} />
@@ -377,8 +373,6 @@ function SidebarContent({ profile, onLogout, onClose }) {
           <>
             <NavItem href="/courses" icon={<MdLibraryBooks className="text-lg" />} label="Mis Cursos" onClose={onClose} />
             <NavItem href="/profile" icon={<MdPerson className="text-lg" />} label="Mi Perfil" onClose={onClose} />
-            <NavItem href="/resources" icon={<MdLibraryMusic className="text-lg" />} label="Biblioteca" onClose={onClose} />
-            <NavItem href="/glossary" icon={<MdMenuBook className="text-lg" />} label="Glosario" onClose={onClose} />
             <NavItem href="/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} badge={unreadCount} />
             <div className="mt-2 pt-2" style={{ borderTop: '1px solid #2a2a38' }}>
               <UpcomingEventsList events={upcomingEvents} pendingRatings={pendingRatings} />
