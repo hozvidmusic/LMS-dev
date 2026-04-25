@@ -23,19 +23,18 @@ const QUESTION_TYPES = [
 
 function extractDriveId(url) {
   if (!url) return null;
-  const m = url.match(/drive\.google\.com\/file\/d\/([^/?\\s]+)\//);
+  const m = url.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
   if (m) return m[1];
-  const m2 = url.match(/id=([^&\s]+)/);
+  const m2 = url.match(/id=([a-zA-Z0-9_-]{10,})/);
   if (m2) return m2[1];
   return null;
 }
 
 function toImageUrl(url) {
   const id = extractDriveId(url);
-  return id ? `https://lh3.googleusercontent.com/d/${id}` : url;
+  return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w800` : url;
 }
 
-// ─── QuestionForm FUERA del componente padre para evitar pérdida de foco ─────
 function QuestionForm({ q, onChange }) {
   const type = q.type;
   const imageRef = useRef(null);
@@ -82,7 +81,10 @@ function QuestionForm({ q, onChange }) {
   function handleMouseMove(e) {
     if (!drawing || !startPos) return;
     const pos = getRelPos(e);
-    setCurrentRect({ x: Math.min(startPos.x, pos.x), y: Math.min(startPos.y, pos.y), width: Math.abs(pos.x - startPos.x), height: Math.abs(pos.y - startPos.y) });
+    setCurrentRect({
+      x: Math.min(startPos.x, pos.x), y: Math.min(startPos.y, pos.y),
+      width: Math.abs(pos.x - startPos.x), height: Math.abs(pos.y - startPos.y)
+    });
   }
   function handleMouseUp() {
     if (currentRect && currentRect.width > 1 && currentRect.height > 1)
@@ -93,7 +95,6 @@ function QuestionForm({ q, onChange }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Tipo */}
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Tipo de pregunta</label>
         <div className="grid grid-cols-2 gap-1.5">
@@ -101,14 +102,13 @@ function QuestionForm({ q, onChange }) {
             <button key={t.id} type="button"
               onClick={() => onChange({ ...q, type: t.id, options: [], pairs: [], orderItems: [], zones: [], image_url: '', audio_url: '' })}
               className="px-3 py-2 rounded-xl text-xs font-medium text-left"
-              style={{ background: type === t.id ? '#7c6af720' : '#0f0f13', color: type === t.id ? '#7c6af7' : '#9090a8', border: `1px solid ${type === t.id ? '#7c6af7' : '#333344'}` }}>
+              style={{ background: type===t.id?'#7c6af720':'#0f0f13', color: type===t.id?'#7c6af7':'#9090a8', border:`1px solid ${type===t.id?'#7c6af7':'#333344'}` }}>
               {t.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Pregunta */}
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Pregunta</label>
         <textarea value={q.question||''} rows={3}
@@ -117,14 +117,12 @@ function QuestionForm({ q, onChange }) {
           style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
       </div>
 
-      {/* Audio — solo si tipo audio */}
       {isAudioType && (
         <Input label="URL de audio (Google Drive)" value={q.audio_url||''}
           placeholder="https://drive.google.com/file/d/..."
           onChange={e => onChange({...q, audio_url: e.target.value})} />
       )}
 
-      {/* Imagen — solo si tipo imagen */}
       {isImageType && (
         <div className="flex flex-col gap-2">
           <Input label="URL de imagen (Google Drive)" value={q.image_url||''}
@@ -133,17 +131,27 @@ function QuestionForm({ q, onChange }) {
           {q.image_url && (
             <div className="flex flex-col gap-2">
               <p className="text-xs font-medium" style={{ color: '#9090a8' }}>
-                {type === 'image_single' ? 'Dibuja UNA zona correcta' : 'Dibuja las zonas correctas'} — arrastra sobre la imagen:
+                {type==='image_single' ? 'Dibuja UNA zona correcta' : 'Dibuja las zonas correctas'} — arrastra sobre la imagen:
               </p>
-              <div className="relative select-none rounded-xl overflow-hidden" style={{ cursor: 'crosshair' }}
-                onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
-                <img ref={imageRef} src={toImageUrl(q.image_url)} alt="pregunta"
-                  className="w-full rounded-xl" draggable={false}
-                  onError={e => { e.target.src = q.image_url; }} />
+              <div className="relative select-none rounded-xl overflow-hidden"
+                style={{ cursor: 'crosshair' }}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}>
+                <img
+                  ref={imageRef}
+                  src={toImageUrl(q.image_url)}
+                  alt="pregunta"
+                  className="w-full rounded-xl"
+                  draggable={false}
+                  onError={ev => { ev.target.src = q.image_url; }}
+                />
                 {(q.zones||[]).map((zone, i) => (
-                  <div key={i} className="absolute rounded" onClick={() => removeZone(i)}
+                  <div key={i} className="absolute rounded"
+                    onClick={() => removeZone(i)}
                     style={{ left:`${zone.x}%`, top:`${zone.y}%`, width:`${zone.width}%`, height:`${zone.height}%`, background:'#4ade8040', border:'2px solid #4ade80', cursor:'pointer' }}>
-                    <span className="absolute -top-4 right-0 text-xs px-1 rounded" style={{ background: '#f75c6a', color: 'white' }}>✕</span>
+                    <span className="absolute -top-4 right-0 text-xs px-1 rounded"
+                      style={{ background:'#f75c6a', color:'white' }}>✕</span>
                   </div>
                 ))}
                 {currentRect && (
@@ -151,112 +159,106 @@ function QuestionForm({ q, onChange }) {
                     style={{ left:`${currentRect.x}%`, top:`${currentRect.y}%`, width:`${currentRect.width}%`, height:`${currentRect.height}%`, background:'#7c6af740', border:'2px dashed #7c6af7' }} />
                 )}
               </div>
-              <p className="text-xs" style={{ color: '#5a5a70' }}>
-                Click en zona verde para eliminarla · {(q.zones||[]).length} zona{(q.zones||[]).length !== 1 ? 's' : ''} definida{(q.zones||[]).length !== 1 ? 's' : ''}
+              <p className="text-xs" style={{ color:'#5a5a70' }}>
+                Click en zona verde para eliminarla · {(q.zones||[]).length} zona{(q.zones||[]).length!==1?'s':''} definida{(q.zones||[]).length!==1?'s':''}
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* Opciones selección múltiple y audio */}
       {hasOptions && (
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium" style={{ color: '#9090a8' }}>
-            Opciones {isAudioType ? '(respuestas para el audio)' : ''}
+          <label className="text-sm font-medium" style={{ color:'#9090a8' }}>
+            Opciones {isAudioType?'(respuestas para el audio)':''}
           </label>
           {(q.options||[]).map((opt, i) => (
             <div key={i} className="flex items-center gap-2">
-              <button type="button" onClick={() => setOption(i, 'is_correct', !opt.is_correct)}
+              <button type="button" onClick={() => setOption(i,'is_correct',!opt.is_correct)}
                 className="w-5 h-5 rounded flex-shrink-0 flex items-center justify-center"
-                style={{ background: opt.is_correct ? '#4ade80' : '#2a2a38', border: `1px solid ${opt.is_correct ? '#4ade80' : '#333344'}` }}>
-                {opt.is_correct && <span className="text-xs font-bold" style={{ color: '#000' }}>✓</span>}
+                style={{ background: opt.is_correct?'#4ade80':'#2a2a38', border:`1px solid ${opt.is_correct?'#4ade80':'#333344'}` }}>
+                {opt.is_correct && <span className="text-xs font-bold" style={{ color:'#000' }}>✓</span>}
               </button>
-              <input value={opt.text} onChange={e => setOption(i, 'text', e.target.value)}
+              <input value={opt.text} onChange={e => setOption(i,'text',e.target.value)}
                 placeholder={`Opción ${i+1}`}
                 className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
-                style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
-              <button type="button" onClick={() => removeOption(i)} style={{ color: '#f75c6a' }}>✕</button>
+                style={{ background:'#0f0f13', border:'1px solid #333344', color:'#e8e8f0' }} />
+              <button type="button" onClick={() => removeOption(i)} style={{ color:'#f75c6a' }}>✕</button>
             </div>
           ))}
           <Button type="button" size="sm" variant="secondary" onClick={addOption}><MdAdd /> Agregar opción</Button>
         </div>
       )}
 
-      {/* Verdadero/Falso */}
-      {type === 'true_false' && (
+      {type==='true_false' && (
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Respuesta correcta</label>
+          <label className="text-sm font-medium" style={{ color:'#9090a8' }}>Respuesta correcta</label>
           <div className="flex gap-3">
             {['Verdadero','Falso'].map(val => (
               <button key={val} type="button"
-                onClick={() => onChange({...q, options: [{text:'Verdadero',is_correct:val==='Verdadero'},{text:'Falso',is_correct:val==='Falso'}]})}
+                onClick={() => onChange({...q, options:[{text:'Verdadero',is_correct:val==='Verdadero'},{text:'Falso',is_correct:val==='Falso'}]})}
                 className="flex-1 py-3 rounded-xl text-sm font-bold"
                 style={{
-                  background: q.options?.find(o=>o.text===val)?.is_correct ? (val==='Verdadero'?'#4ade8020':'#f75c6a20') : '#0f0f13',
-                  color: q.options?.find(o=>o.text===val)?.is_correct ? (val==='Verdadero'?'#4ade80':'#f75c6a') : '#9090a8',
-                  border: `1px solid ${q.options?.find(o=>o.text===val)?.is_correct ? (val==='Verdadero'?'#4ade80':'#f75c6a') : '#333344'}`,
+                  background: q.options?.find(o=>o.text===val)?.is_correct?(val==='Verdadero'?'#4ade8020':'#f75c6a20'):'#0f0f13',
+                  color: q.options?.find(o=>o.text===val)?.is_correct?(val==='Verdadero'?'#4ade80':'#f75c6a'):'#9090a8',
+                  border:`1px solid ${q.options?.find(o=>o.text===val)?.is_correct?(val==='Verdadero'?'#4ade80':'#f75c6a'):'#333344'}`,
                 }}>
-                {val === 'Verdadero' ? '✓ Verdadero' : '✗ Falso'}
+                {val==='Verdadero'?'✓ Verdadero':'✗ Falso'}
               </button>
             ))}
           </div>
         </div>
       )}
 
-      {/* Completar espacio */}
-      {type === 'fill_blank' && (
+      {type==='fill_blank' && (
         <div className="flex flex-col gap-2">
           <Input label="Respuesta correcta" value={q.options?.[0]?.text||''}
             placeholder="Escribe la respuesta correcta"
-            onChange={e => onChange({...q, options: [{text: e.target.value, is_correct: true}]})} />
-          <p className="text-xs" style={{ color: '#5a5a70' }}>Usa ___ en la pregunta para indicar el espacio en blanco</p>
+            onChange={e => onChange({...q, options:[{text:e.target.value, is_correct:true}]})} />
+          <p className="text-xs" style={{ color:'#5a5a70' }}>Usa ___ en la pregunta para indicar el espacio en blanco</p>
         </div>
       )}
 
-      {/* Relacionar */}
-      {type === 'match' && (
+      {type==='match' && (
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Pares (izquierda ↔ derecha)</label>
+          <label className="text-sm font-medium" style={{ color:'#9090a8' }}>Pares (izquierda ↔ derecha)</label>
           {(q.pairs||[]).map((pair, i) => (
             <div key={i} className="flex items-center gap-2">
               <input value={pair.left} onChange={e => setPair(i,'left',e.target.value)} placeholder="Izquierda"
                 className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
-                style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
-              <span style={{ color: '#5a5a70' }}>↔</span>
+                style={{ background:'#0f0f13', border:'1px solid #333344', color:'#e8e8f0' }} />
+              <span style={{ color:'#5a5a70' }}>↔</span>
               <input value={pair.right} onChange={e => setPair(i,'right',e.target.value)} placeholder="Derecha"
                 className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
-                style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
-              <button type="button" onClick={() => removePair(i)} style={{ color: '#f75c6a' }}>✕</button>
+                style={{ background:'#0f0f13', border:'1px solid #333344', color:'#e8e8f0' }} />
+              <button type="button" onClick={() => removePair(i)} style={{ color:'#f75c6a' }}>✕</button>
             </div>
           ))}
           <Button type="button" size="sm" variant="secondary" onClick={addPair}><MdAdd /> Agregar par</Button>
         </div>
       )}
 
-      {/* Ordenar */}
-      {type === 'order' && (
+      {type==='order' && (
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Elementos en el orden correcto</label>
+          <label className="text-sm font-medium" style={{ color:'#9090a8' }}>Elementos en el orden correcto</label>
           {(q.orderItems||[]).map((item, i) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="text-xs w-5 text-center font-bold" style={{ color: '#7c6af7' }}>{i+1}</span>
-              <input value={item.text} onChange={e => setOrderItem(i, e.target.value)}
+              <span className="text-xs w-5 text-center font-bold" style={{ color:'#7c6af7' }}>{i+1}</span>
+              <input value={item.text} onChange={e => setOrderItem(i,e.target.value)}
                 placeholder={`Elemento ${i+1}`}
                 className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
-                style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
-              <button type="button" onClick={() => removeOrderItem(i)} style={{ color: '#f75c6a' }}>✕</button>
+                style={{ background:'#0f0f13', border:'1px solid #333344', color:'#e8e8f0' }} />
+              <button type="button" onClick={() => removeOrderItem(i)} style={{ color:'#f75c6a' }}>✕</button>
             </div>
           ))}
           <Button type="button" size="sm" variant="secondary" onClick={addOrderItem}><MdAdd /> Agregar elemento</Button>
-          <p className="text-xs" style={{ color: '#5a5a70' }}>El orden en que los escribes es el orden correcto</p>
+          <p className="text-xs" style={{ color:'#5a5a70' }}>El orden en que los escribes es el orden correcto</p>
         </div>
       )}
     </div>
   );
 }
 
-// ─── PÁGINA PRINCIPAL ─────────────────────────────────────────────────────────
 export default function EvaluationQuestions() {
   const { evaluationId } = useParams();
   const router = useRouter();
@@ -307,12 +309,12 @@ export default function EvaluationQuestions() {
       }
       if (['multiple_single','multiple_many','true_false','fill_blank','audio'].includes(formQ.type))
         await saveOptions(qId, formQ.options);
-      if (formQ.type === 'match') await savePairs(qId, formQ.pairs);
-      if (formQ.type === 'order') await saveOrderItems(qId, formQ.orderItems);
+      if (formQ.type==='match') await savePairs(qId, formQ.pairs);
+      if (formQ.type==='order') await saveOrderItems(qId, formQ.orderItems);
       if (['image_single','image_multiple'].includes(formQ.type)) await saveZones(qId, formQ.zones);
-      toast.success(editingQ ? 'Pregunta actualizada' : 'Pregunta creada');
+      toast.success(editingQ?'Pregunta actualizada':'Pregunta creada');
       setShowForm(false); setEditingQ(null);
-      setFormQ({ type: 'multiple_single', question: '', options: [], pairs: [], orderItems: [], zones: [], image_url: '', audio_url: '' });
+      setFormQ({ type:'multiple_single', question:'', options:[], pairs:[], orderItems:[], zones:[], image_url:'', audio_url:'' });
       load();
     } catch { toast.error('Error al guardar pregunta'); }
   }
@@ -323,31 +325,24 @@ export default function EvaluationQuestions() {
     catch { toast.error('Error al eliminar'); }
   }
 
-  function openEdit(q) {
-    setEditingQ(q);
-    setFormQ({ ...q });
-    setShowForm(true);
-  }
-
-  function getTypeName(type) {
-    return QUESTION_TYPES.find(t => t.id === type)?.label || type;
-  }
+  function openEdit(q) { setEditingQ(q); setFormQ({...q}); setShowForm(true); }
+  function getTypeName(type) { return QUESTION_TYPES.find(t=>t.id===type)?.label||type; }
 
   return (
     <div className="max-w-4xl mx-auto">
       <button onClick={() => router.push('/admin/evaluations')}
-        className="flex items-center gap-1 text-sm mb-4" style={{ color: '#9090a8' }}>
+        className="flex items-center gap-1 text-sm mb-4" style={{ color:'#9090a8' }}>
         <MdChevronLeft /> Volver al banco
       </button>
 
       {evaluation && (
         <div className="mb-6">
           <h1 className="font-display font-bold text-2xl text-white">{evaluation.title}</h1>
-          <p className="text-sm mt-1" style={{ color: '#5a5a70' }}>
+          <p className="text-sm mt-1" style={{ color:'#5a5a70' }}>
             {questions.length} preguntas ·{' '}
-            {evaluation.max_attempts === 999 ? 'Intentos ilimitados' : `${evaluation.max_attempts} intento${evaluation.max_attempts !== 1 ? 's' : ''}`}
-            {evaluation.time_limit && ` · ⏱ ${evaluation.time_limit} min`}
-            {evaluation.random_order && ' · 🔀 Orden aleatorio'}
+            {evaluation.max_attempts===999?'Intentos ilimitados':`${evaluation.max_attempts} intento${evaluation.max_attempts!==1?'s':''}`}
+            {evaluation.time_limit&&` · ⏱ ${evaluation.time_limit} min`}
+            {evaluation.random_order&&' · 🔀 Orden aleatorio'}
           </p>
         </div>
       )}
@@ -355,7 +350,7 @@ export default function EvaluationQuestions() {
       <div className="flex justify-end mb-4">
         <Button onClick={() => {
           setEditingQ(null);
-          setFormQ({ type: 'multiple_single', question: '', options: [], pairs: [], orderItems: [], zones: [], image_url: '', audio_url: '' });
+          setFormQ({ type:'multiple_single', question:'', options:[], pairs:[], orderItems:[], zones:[], image_url:'', audio_url:'' });
           setShowForm(true);
         }}>
           <MdAdd /> Nueva pregunta
@@ -363,20 +358,20 @@ export default function EvaluationQuestions() {
       </div>
 
       <div className="flex flex-col gap-3">
-        {questions.length === 0 ? (
-          <Card><p className="text-center py-12" style={{ color: '#5a5a70' }}>No hay preguntas todavía.</p></Card>
-        ) : questions.map((q, i) => (
+        {questions.length===0 ? (
+          <Card><p className="text-center py-12" style={{ color:'#5a5a70' }}>No hay preguntas todavía.</p></Card>
+        ) : questions.map((q,i) => (
           <Card key={q.id}>
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0"
-                style={{ background: '#7c6af720', color: '#7c6af7' }}>{i+1}</div>
+                style={{ background:'#7c6af720', color:'#7c6af7' }}>{i+1}</div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#7c6af720', color: '#7c6af7' }}>
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background:'#7c6af720', color:'#7c6af7' }}>
                     {getTypeName(q.type)}
                   </span>
-                  {q.audio_url && <span className="text-xs" style={{ color: '#5a5a70' }}>🎵 Audio</span>}
-                  {q.image_url && <span className="text-xs" style={{ color: '#5a5a70' }}>🖼 Imagen</span>}
+                  {q.audio_url&&<span className="text-xs" style={{ color:'#5a5a70' }}>🎵 Audio</span>}
+                  {q.image_url&&<span className="text-xs" style={{ color:'#5a5a70' }}>🖼 Imagen</span>}
                 </div>
                 <p className="text-sm text-white">{q.question}</p>
               </div>
@@ -390,12 +385,12 @@ export default function EvaluationQuestions() {
       </div>
 
       <Modal isOpen={showForm} onClose={() => setShowForm(false)}
-        title={editingQ ? 'Editar pregunta' : 'Nueva pregunta'} size="lg">
+        title={editingQ?'Editar pregunta':'Nueva pregunta'} size="lg">
         <div className="flex flex-col gap-4">
           <QuestionForm q={formQ} onChange={setFormQ} />
           <div className="flex gap-3 pt-2">
             <Button className="flex-1" onClick={handleSave}>
-              {editingQ ? 'Guardar cambios' : 'Crear pregunta'}
+              {editingQ?'Guardar cambios':'Crear pregunta'}
             </Button>
             <Button variant="secondary" onClick={() => setShowForm(false)}>Cancelar</Button>
           </div>
