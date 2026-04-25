@@ -15,6 +15,7 @@ import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import toast from 'react-hot-toast';
+import { getEvaluations, assignEvaluation, removeAssignment, getAssignmentsForCourse } from '@/services/evaluationService';
 import { MdAdd, MdEdit, MdChevronLeft, MdDelete, MdExpandMore, MdExpandLess, MdDragIndicator, MdCopyAll } from 'react-icons/md';
 
 const ITEM_TYPES = [
@@ -381,13 +382,38 @@ export default function AdminLessons() {
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showContents, setShowContents] = useState(false);
+  const [courseEvaluations, setCourseEvaluations] = useState([]);
+  const [allEvaluations, setAllEvaluations] = useState([]);
+  const [showAddEval, setShowAddEval] = useState(false);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ title: '', description: '' });
   const dragLesson = useRef(null);
   const dragLessonOver = useRef(null);
 
-  async function load() { setLessons(await getLessonsByCourse(courseId)); }
+  async function load() {
+    setLessons(await getLessonsByCourse(courseId));
+    const [ce, ae] = await Promise.all([getAssignmentsForCourse(courseId), getEvaluations()]);
+    setCourseEvaluations(ce);
+    setAllEvaluations(ae);
+  }
+
+
   useEffect(() => { load(); }, [courseId]);
+
+  async function handleAssignCourseEval(evaluationId) {
+    await assignEvaluation({ evaluation_id: evaluationId, course_id: courseId });
+    toast.success('Evaluación asignada al curso');
+    load();
+    setShowAddEval(false);
+  }
+
+  async function handleRemoveCourseEval(assignmentId) {
+    if (!confirm('¿Quitar esta evaluación del curso?')) return;
+    await removeAssignment(assignmentId);
+    toast.success('Evaluación eliminada del curso');
+    load();
+  }
+
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -437,7 +463,10 @@ export default function AdminLessons() {
           <h1 className="font-display font-bold text-2xl text-white">Lecciones</h1>
           <p className="text-sm mt-1" style={{ color: '#5a5a70' }}>{lessons.length} lecciones · Arrastra para reordenar</p>
         </div>
-        <Button onClick={() => setShowCreate(true)}><MdAdd /> Nueva lección</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setShowAddEval(true)}>📝 Evaluaciones del curso</Button>
+          <Button onClick={() => setShowCreate(true)}><MdAdd /> Nueva lección</Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -516,6 +545,42 @@ export default function AdminLessons() {
           </form>
         </Modal>
       )}
+
+      {/* Evaluaciones del curso */}
+      {courseEvaluations.length > 0 && (
+        <div className="mt-6">
+          <h3 className="font-semibold text-white mb-3">Evaluaciones del curso</h3>
+          <div className="flex flex-col gap-2">
+            {courseEvaluations.map(a => (
+              <div key={a.id} className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ background: "#16161d", border: "1px solid #2a2a38" }}>
+                <span className="text-sm text-white">📝 {a.evaluations?.title}</span>
+                <Button size="sm" variant="danger" onClick={async () => { await removeAssignment(a.id); load(); }}>✕</Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modal agregar evaluación al curso */}
+      <Modal isOpen={showAddEval} onClose={() => setShowAddEval(false)} title="Agregar evaluación al curso">
+        <div className="flex flex-col gap-3">
+          {allEvaluations.length === 0 ? (
+            <p style={{ color: "#5a5a70" }}>No hay evaluaciones en el banco todavía.</p>
+          ) : allEvaluations.map(ev => (
+            <button key={ev.id} onClick={async () => { await assignEvaluation({ evaluation_id: ev.id, course_id: courseId }); setShowAddEval(false); load(); }}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all w-full"
+              style={{ background: "#16161d", border: "1px solid #2a2a38" }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = "#7c6af7"}
+              onMouseLeave={e => e.currentTarget.style.borderColor = "#2a2a38"}>
+              <span className="text-lg">📝</span>
+              <div>
+                <p className="text-sm font-medium text-white">{ev.title}</p>
+                {ev.description && <p className="text-xs" style={{ color: "#5a5a70" }}>{ev.description}</p>}
+              </div>
+            </button>
+          ))}
+        </div>
+      </Modal>
 
       {selected && showContents && (
         <LessonContentModal lesson={selected} onClose={() => { setShowContents(false); setSelected(null); }} />

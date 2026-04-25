@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getCourses, getLessonsByCourse } from '@/services/courseService';
 import { getCoursesForStudent } from '@/services/assignmentService';
+import { getAssignmentsForCourse, getEvaluation } from '@/services/evaluationService';
 import { supabase } from '@/supabase/client';
 import Card from '@/components/ui/Card';
 import { MdChevronRight, MdCheckCircle } from 'react-icons/md';
@@ -60,6 +61,7 @@ export default function CoursesPage() {
 function CourseCard({ course, profile, router }) {
   const [lessons, setLessons] = useState([]);
   const [completed, setCompleted] = useState([]);
+  const [courseEvals, setCourseEvals] = useState([]);
   const color = course.color || '#7c6af7';
 
   useEffect(() => {
@@ -72,6 +74,9 @@ function CourseCard({ course, profile, router }) {
         .eq('user_id', profile.id)
         .eq('completed', true);
       setCompleted((data || []).map(d => d.lesson_id));
+      const assignments = await getAssignmentsForCourse(course.id);
+      const evals = await Promise.all(assignments.map(a => getEvaluation(a.evaluation_id)));
+      setCourseEvals(evals.filter(Boolean));
     }
     load();
   }, [course.id, profile.id]);
@@ -125,6 +130,25 @@ function CourseCard({ course, profile, router }) {
                   </button>
                 );
               })}
+            </div>
+          )}
+          {courseEvals.length > 0 && (
+            <div className="flex flex-col gap-2 mt-4">
+              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#5a5a70' }}>Evaluaciones del curso</p>
+              {courseEvals.map(ev => (
+                <button key={ev.id}
+                  onClick={() => router.push(`/evaluations/${ev.id}`)}
+                  className="flex items-center justify-between p-3 rounded-xl text-left transition-all w-full"
+                  style={{ background: '#0f0f13', border: '1px solid #2a2a38' }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = color}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = '#2a2a38'}>
+                  <div className="flex items-center gap-2">
+                    <span>📝</span>
+                    <span className="text-sm" style={{ color: '#c0c0d0' }}>{ev.title}</span>
+                  </div>
+                  <MdChevronRight style={{ color: '#5a5a70' }} />
+                </button>
+              ))}
             </div>
           )}
         </div>
