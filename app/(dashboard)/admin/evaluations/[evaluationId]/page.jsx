@@ -144,7 +144,7 @@ function QuestionForm({ q, onChange }) {
                   alt="pregunta"
                   className="w-full rounded-xl"
                   draggable={false}
-                  onError={ev => { ev.target.src = q.image_url; }}
+                  onError={ev => { ev.target.onerror = null; ev.target.style.opacity = "0.3"; }}
                 />
                 {(q.zones||[]).map((zone, i) => (
                   <div key={i} className="absolute rounded"
