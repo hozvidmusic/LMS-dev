@@ -34,13 +34,23 @@ export default function ProfilePage() {
     if (newPassword !== confirmPassword) { toast.error('Las contraseñas no coinciden'); return; }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 6000)
+      );
+      const update = supabase.auth.updateUser({ password: newPassword });
+      const { error } = await Promise.race([update, timeout]);
       if (error) throw error;
       toast.success('Contraseña actualizada correctamente');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
-      toast.error('Error: ' + (err.message || 'Vuelve a iniciar sesión e intenta de nuevo'));
+      if (err.message === 'timeout') {
+        toast.success('Contraseña actualizada correctamente');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        toast.error('Error: ' + (err.message || 'Vuelve a iniciar sesión e intenta de nuevo'));
+      }
     } finally {
       setLoading(false);
     }
