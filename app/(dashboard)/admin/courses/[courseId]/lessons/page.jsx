@@ -14,6 +14,7 @@ import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import toast from 'react-hot-toast';
+import RichTextEditor from '@/components/editor/RichTextEditor';
 
 function ItemForm({ contentId, onSave, onCancel }) {
   const TYPES = [
@@ -51,10 +52,7 @@ function ItemForm({ contentId, onSave, onCancel }) {
       <Input label="Título (opcional)" value={form.title}
         onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
       {form.type === 'text'
-        ? <textarea value={form.content} onChange={e => setForm(p => ({ ...p, content: e.target.value }))}
-            placeholder="Contenido HTML o texto..." rows={4}
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-y"
-            style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
+        ? <RichTextEditor value={form.content} onChange={v => setForm(p => ({ ...p, content: v }))} />
         : <Input label="URL" value={form.content} required
             onChange={e => setForm(p => ({ ...p, content: e.target.value }))} />}
       <div className="flex gap-2">
