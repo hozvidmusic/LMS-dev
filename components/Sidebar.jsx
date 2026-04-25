@@ -13,7 +13,7 @@ import {
   MdDashboard, MdAnnouncement,
   MdLibraryBooks, MdPerson, MdPeople, MdSchool, MdLogout,
   MdCheckCircle, MdRadioButtonUnchecked, MdChevronLeft,
-  MdAssignment, MdExpandMore, MdExpandLess, MdVisibility, MdQuiz,
+  MdAssignment, MdExpandMore, MdExpandLess, MdVisibility,
   MdEvent, MdClose
 } from 'react-icons/md';
 import Image from 'next/image';
@@ -367,7 +367,7 @@ function SidebarContent({ profile, onLogout, onClose }) {
             <NavItem href="/admin/courses" icon={<MdSchool className="text-lg" />} label="Cursos" onClose={onClose} />
             <NavItem href="/admin/announcements" icon={<MdAnnouncement className="text-lg" />} label="Anuncios" onClose={onClose} />
             <NavItem href="/admin/calendar" icon={<MdEvent className="text-lg" />} label="Calendario" onClose={onClose} />
-            <NavItem href="/admin/evaluations" icon={<MdQuiz className="text-lg" />} label="Evaluaciones" onClose={onClose} />
+            <NavItem href="/admin/evaluations" icon={< className="text-lg" />} label="Evaluaciones" onClose={onClose} />
           </>
         ) : (
           <>

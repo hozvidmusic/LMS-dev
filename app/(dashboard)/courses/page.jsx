@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getCourses, getLessonsByCourse } from '@/services/courseService';
 import { getCoursesForStudent } from '@/services/assignmentService';
-import { getAssignmentsForCourse, getEvaluation } from '@/services/evaluationService';
 import { supabase } from '@/supabase/client';
 import Card from '@/components/ui/Card';
 import { MdChevronRight, MdCheckCircle } from 'react-icons/md';
@@ -61,7 +60,6 @@ export default function CoursesPage() {
 function CourseCard({ course, profile, router }) {
   const [lessons, setLessons] = useState([]);
   const [completed, setCompleted] = useState([]);
-  const [courseEvals, setCourseEvals] = useState([]);
   const color = course.color || '#7c6af7';
 
   useEffect(() => {
@@ -74,9 +72,6 @@ function CourseCard({ course, profile, router }) {
         .eq('user_id', profile.id)
         .eq('completed', true);
       setCompleted((data || []).map(d => d.lesson_id));
-      const assignments = await getAssignmentsForCourse(course.id);
-      const evals = await Promise.all(assignments.map(a => getEvaluation(a.evaluation_id)));
-      setCourseEvals(evals.filter(Boolean));
     }
     load();
   }, [course.id, profile.id]);
