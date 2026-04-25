@@ -13,6 +13,73 @@ import { MdAdd, MdEdit, MdDelete, MdQuiz, MdLabel } from 'react-icons/md';
 const PRESET_COLORS = ['#7c6af7','#f75c6a','#f7a23c','#3cf7a2','#3ca2f7','#fbbf24','#4ade80','#a78bfa'];
 const EMPTY_FORM = { title: '', description: '', max_attempts: 1, time_limit: '', random_order: false };
 
+// ─── FUERA del componente padre para evitar recreación y pérdida de foco ─────
+function EvalForm({ data, setData, tags, selectedTags, toggleTag }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <Input label="Título" value={data.title} required
+        onChange={e => setData(p => ({...p, title: e.target.value}))} />
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Descripción</label>
+        <textarea value={data.description || ''} rows={2}
+          onChange={e => setData(p => ({...p, description: e.target.value}))}
+          className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
+          style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Intentos permitidos</label>
+        <div className="flex gap-2">
+          {[1,2,3,5].map(n => (
+            <button key={n} type="button" onClick={() => setData(p => ({...p, max_attempts: n}))}
+              className="flex-1 py-2 rounded-xl text-sm font-bold"
+              style={{ background: data.max_attempts === n ? '#7c6af720' : '#0f0f13', color: data.max_attempts === n ? '#7c6af7' : '#9090a8', border: `1px solid ${data.max_attempts === n ? '#7c6af7' : '#333344'}` }}>
+              {n}
+            </button>
+          ))}
+          <button type="button" onClick={() => setData(p => ({...p, max_attempts: 999}))}
+            className="flex-1 py-2 rounded-xl text-xs font-bold"
+            style={{ background: data.max_attempts === 999 ? '#7c6af720' : '#0f0f13', color: data.max_attempts === 999 ? '#7c6af7' : '#9090a8', border: `1px solid ${data.max_attempts === 999 ? '#7c6af7' : '#333344'}` }}>
+            ∞
+          </button>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Tiempo límite (min)</label>
+        <input type="number" value={data.time_limit || ''} min={1} placeholder="Sin límite"
+          onChange={e => setData(p => ({...p, time_limit: e.target.value}))}
+          className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+          style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
+      </div>
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={() => setData(p => ({...p, random_order: !p.random_order}))}
+          className="w-10 h-6 rounded-full transition-all relative flex-shrink-0"
+          style={{ background: data.random_order ? '#7c6af7' : '#2a2a38' }}>
+          <div className="w-4 h-4 rounded-full absolute top-1 transition-all"
+            style={{ background: 'white', left: data.random_order ? '22px' : '4px' }} />
+        </button>
+        <span className="text-sm" style={{ color: '#9090a8' }}>Orden aleatorio de preguntas</span>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Etiquetas</label>
+        <div className="flex flex-wrap gap-1.5">
+          {tags.map(tag => (
+            <button key={tag.id} type="button" onClick={() => toggleTag(tag.id)}
+              className="px-2 py-1 rounded-lg text-xs font-medium transition-all"
+              style={{
+                background: selectedTags.includes(tag.id) ? tag.color + '30' : '#0f0f13',
+                color: selectedTags.includes(tag.id) ? tag.color : '#9090a8',
+                border: `1px solid ${selectedTags.includes(tag.id) ? tag.color : '#333344'}`,
+              }}>
+              {tag.name}
+            </button>
+          ))}
+          {tags.length === 0 && <p className="text-xs" style={{ color: '#5a5a70' }}>No hay etiquetas. Crea una primero.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminEvaluations() {
   const { profile } = useAuth();
   const router = useRouter();
@@ -40,10 +107,18 @@ export default function AdminEvaluations() {
 
   useEffect(() => { load(); }, []);
 
+  function toggleTag(id) {
+    setSelectedTags(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
+  }
+
   async function handleCreate(e) {
     e.preventDefault();
     try {
-      const ev = await createEvaluation({ ...form, time_limit: form.time_limit ? Number(form.time_limit) : null, created_by: profile.id });
+      const ev = await createEvaluation({
+        ...form,
+        time_limit: form.time_limit ? Number(form.time_limit) : null,
+        created_by: profile.id
+      });
       if (selectedTags.length) await setEvaluationTags(ev.id, selectedTags);
       toast.success('Evaluación creada');
       setShowCreate(false);
@@ -57,7 +132,8 @@ export default function AdminEvaluations() {
     e.preventDefault();
     try {
       await updateEvaluation(selected.id, {
-        title: selected.title, description: selected.description,
+        title: selected.title,
+        description: selected.description,
         max_attempts: selected.max_attempts,
         time_limit: selected.time_limit ? Number(selected.time_limit) : null,
         random_order: selected.random_order,
@@ -96,10 +172,6 @@ export default function AdminEvaluations() {
     setShowEdit(true);
   }
 
-  function toggleTag(id) {
-    setSelectedTags(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
-  }
-
   function getEvTags(ev) {
     return ev.evaluation_tag_relations?.map(r => r.evaluation_tags).filter(Boolean) || [];
   }
@@ -110,72 +182,6 @@ export default function AdminEvaluations() {
     return matchTag && matchSearch;
   });
 
-  function EvalForm({ data, setData }) {
-    return (
-      <div className="flex flex-col gap-4">
-        <Input label="Título" value={data.title} required onChange={e => setData(p => ({...p, title: e.target.value}))} />
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Descripción</label>
-          <textarea value={data.description || ''} rows={2} onChange={e => setData(p => ({...p, description: e.target.value}))}
-            className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
-            style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Intentos permitidos</label>
-            <div className="flex gap-2">
-              {[1,2,3,5].map(n => (
-                <button key={n} type="button" onClick={() => setData(p => ({...p, max_attempts: n}))}
-                  className="flex-1 py-2 rounded-xl text-sm font-bold"
-                  style={{ background: data.max_attempts === n ? '#7c6af720' : '#0f0f13', color: data.max_attempts === n ? '#7c6af7' : '#9090a8', border: `1px solid ${data.max_attempts === n ? '#7c6af7' : '#333344'}` }}>
-                  {n}
-                </button>
-              ))}
-              <button type="button" onClick={() => setData(p => ({...p, max_attempts: 999}))}
-                className="flex-1 py-2 rounded-xl text-xs font-bold"
-                style={{ background: data.max_attempts === 999 ? '#7c6af720' : '#0f0f13', color: data.max_attempts === 999 ? '#7c6af7' : '#9090a8', border: `1px solid ${data.max_attempts === 999 ? '#7c6af7' : '#333344'}` }}>
-                ∞
-              </button>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Tiempo límite (min)</label>
-            <input type="number" value={data.time_limit || ''} min={1} placeholder="Sin límite"
-              onChange={e => setData(p => ({...p, time_limit: e.target.value}))}
-              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
-              style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={() => setData(p => ({...p, random_order: !p.random_order}))}
-            className="w-10 h-6 rounded-full transition-all relative"
-            style={{ background: data.random_order ? '#7c6af7' : '#2a2a38' }}>
-            <div className="w-4 h-4 rounded-full absolute top-1 transition-all"
-              style={{ background: 'white', left: data.random_order ? '22px' : '4px' }} />
-          </button>
-          <span className="text-sm" style={{ color: '#9090a8' }}>Orden aleatorio de preguntas</span>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Etiquetas</label>
-          <div className="flex flex-wrap gap-1.5">
-            {tags.map(tag => (
-              <button key={tag.id} type="button" onClick={() => toggleTag(tag.id)}
-                className="px-2 py-1 rounded-lg text-xs font-medium transition-all"
-                style={{
-                  background: selectedTags.includes(tag.id) ? tag.color + '30' : '#0f0f13',
-                  color: selectedTags.includes(tag.id) ? tag.color : '#9090a8',
-                  border: `1px solid ${selectedTags.includes(tag.id) ? tag.color : '#333344'}`,
-                }}>
-                {tag.name}
-              </button>
-            ))}
-            {tags.length === 0 && <p className="text-xs" style={{ color: '#5a5a70' }}>No hay etiquetas. Crea una primero.</p>}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -185,11 +191,12 @@ export default function AdminEvaluations() {
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setShowTags(true)}><MdLabel /> Etiquetas</Button>
-          <Button onClick={() => { setForm(EMPTY_FORM); setSelectedTags([]); setShowCreate(true); }}><MdAdd /> Nueva evaluación</Button>
+          <Button onClick={() => { setForm(EMPTY_FORM); setSelectedTags([]); setShowCreate(true); }}>
+            <MdAdd /> Nueva evaluación
+          </Button>
         </div>
       </div>
 
-      {/* Búsqueda y filtros */}
       <div className="flex gap-3 mb-6 flex-wrap">
         <input type="text" value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Buscar evaluación..."
@@ -211,7 +218,6 @@ export default function AdminEvaluations() {
         </div>
       </div>
 
-      {/* Lista */}
       {loading ? <p style={{ color: '#5a5a70' }}>Cargando...</p> : (
         <div className="flex flex-col gap-3">
           {filtered.length === 0 ? (
@@ -235,7 +241,7 @@ export default function AdminEvaluations() {
                   </div>
                   {ev.description && <p className="text-xs mb-2" style={{ color: '#5a5a70' }}>{ev.description}</p>}
                   <div className="flex gap-3 text-xs flex-wrap" style={{ color: '#5a5a70' }}>
-                    <span>🔁 {ev.max_attempts === 999 ? 'Intentos ilimitados' : `${ev.max_attempts} intento${ev.max_attempts !== 1 ? 's' : ''}`}</span>
+                    <span>🔁 {ev.max_attempts === 999 ? 'Ilimitados' : `${ev.max_attempts} intento${ev.max_attempts !== 1 ? 's' : ''}`}</span>
                     {ev.time_limit && <span>⏱ {ev.time_limit} min</span>}
                     {ev.random_order && <span>🔀 Orden aleatorio</span>}
                   </div>
@@ -253,10 +259,9 @@ export default function AdminEvaluations() {
         </div>
       )}
 
-      {/* Modal crear */}
       <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Nueva evaluación">
         <form onSubmit={handleCreate} className="flex flex-col gap-4">
-          <EvalForm data={form} setData={setForm} />
+          <EvalForm data={form} setData={setForm} tags={tags} selectedTags={selectedTags} toggleTag={toggleTag} />
           <div className="flex gap-3 pt-2">
             <Button type="submit" className="flex-1">Crear evaluación</Button>
             <Button type="button" variant="secondary" onClick={() => setShowCreate(false)}>Cancelar</Button>
@@ -264,11 +269,10 @@ export default function AdminEvaluations() {
         </form>
       </Modal>
 
-      {/* Modal editar */}
       {selected && (
         <Modal isOpen={showEdit} onClose={() => setShowEdit(false)} title="Editar evaluación">
           <form onSubmit={handleEdit} className="flex flex-col gap-4">
-            <EvalForm data={selected} setData={setSelected} />
+            <EvalForm data={selected} setData={setSelected} tags={tags} selectedTags={selectedTags} toggleTag={toggleTag} />
             <div className="flex gap-3 pt-2">
               <Button type="submit" className="flex-1">Guardar</Button>
               <Button type="button" variant="secondary" onClick={() => setShowEdit(false)}>Cancelar</Button>
@@ -277,24 +281,24 @@ export default function AdminEvaluations() {
         </Modal>
       )}
 
-      {/* Modal etiquetas */}
       <Modal isOpen={showTags} onClose={() => setShowTags(false)} title="Gestionar etiquetas">
         <div className="flex flex-col gap-4">
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
             <input type="text" value={newTagName} onChange={e => setNewTagName(e.target.value)}
-              placeholder="Nombre de la etiqueta" onKeyDown={e => e.key === 'Enter' && handleCreateTag()}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm outline-none"
+              placeholder="Nombre de la etiqueta"
+              onKeyDown={e => e.key === 'Enter' && handleCreateTag()}
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
               style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
-            <div className="flex gap-1 flex-wrap">
+            <div className="flex gap-1.5 flex-wrap">
               {PRESET_COLORS.map(c => (
                 <button key={c} type="button" onClick={() => setNewTagColor(c)}
-                  className="w-6 h-6 rounded-full"
-                  style={{ background: c, outline: newTagColor === c ? '2px solid white' : 'none', outlineOffset: '2px' }} />
+                  className="w-7 h-7 rounded-full"
+                  style={{ background: c, outline: newTagColor === c ? '3px solid white' : 'none', outlineOffset: '2px' }} />
               ))}
             </div>
-            <Button onClick={handleCreateTag}>Crear</Button>
+            <Button onClick={handleCreateTag}>Crear etiqueta</Button>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 mt-2">
             {tags.length === 0 ? (
               <p className="text-sm text-center py-4" style={{ color: '#5a5a70' }}>No hay etiquetas.</p>
             ) : tags.map(tag => (
