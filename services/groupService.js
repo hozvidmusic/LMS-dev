@@ -1,11 +1,8 @@
-import { supabase } from '@/supabase/client';
-import { createClient } from '@supabase/supabase-js';
+import { getAdminClient } from '@/supabase/adminClient';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_KEY,
-  { auth: { persistSession: false, autoRefreshToken: false } }
-);
+const supabaseAdmin = getAdminClient();
+import { supabase } from '@/supabase/client';
+
 
 export async function getGroups() {
   const { data, error } = await supabaseAdmin

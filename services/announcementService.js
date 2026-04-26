@@ -1,10 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
+import { getAdminClient } from '@/supabase/adminClient';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_KEY,
-  { auth: { persistSession: false, autoRefreshToken: false } }
-);
+const supabaseAdmin = getAdminClient();
+
 
 export async function getAllAnnouncements() {
   const { data, error } = await supabaseAdmin

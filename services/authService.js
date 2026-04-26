@@ -1,13 +1,9 @@
 import { supabase } from '@/supabase/client';
-import { createClient } from '@supabase/supabase-js';
+import { getAdminClient } from '@/supabase/adminClient';
 
 const toEmail = (username) => `${username.toLowerCase().trim()}@plataforma.local`;
 
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_KEY,
-    { auth: { persistSession: false, autoRefreshToken: false } }
+
   );
 }
 
