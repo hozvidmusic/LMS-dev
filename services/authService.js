@@ -3,10 +3,6 @@ import { getAdminClient } from '@/supabase/adminClient';
 
 const toEmail = (username) => `${username.toLowerCase().trim()}@plataforma.local`;
 
-
-  );
-}
-
 export async function loginWithUsername(username, password) {
   const email = toEmail(username);
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -31,7 +27,6 @@ export async function createStudent({ username, displayName, password }) {
       role: 'student',
     },
   });
-
   if (error) {
     if (error.message?.includes('already been registered') || error.message?.includes('already exists')) {
       throw new Error('Este nombre de usuario ya existe');
