@@ -10,12 +10,28 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const mounted = useRef(true);
 
-  async function loadProfile(userId) {
-    if (!userId) { if (mounted.current) setProfile(null); return; }
+  function profileFromUser(u) {
+    if (!u) return null;
+    const meta = u.user_metadata || {};
+    return {
+      id: u.id,
+      username: meta.username || u.email?.split('@')[0] || '',
+      display_name: meta.display_name || meta.username || 'Usuario',
+      role: meta.role || 'student',
+      last_login: null,
+    };
+  }
+
+  async function loadProfile(u) {
+    if (!u) { if (mounted.current) setProfile(null); return; }
+    // Usar metadata del JWT inmediatamente para no quedarse cargando
+    const fallback = profileFromUser(u);
+    if (mounted.current) setProfile(fallback);
+    // Intentar enriquecer con datos de la tabla profiles
     try {
       const { data } = await supabase
-        .from('profiles').select('*').eq('id', userId).single();
-      if (mounted.current) setProfile(data || null);
+        .from('profiles').select('*').eq('id', u.id).single();
+      if (mounted.current && data) setProfile(data);
     } catch {}
   }
 
@@ -35,7 +51,7 @@ export function AuthProvider({ children }) {
         if (!mounted.current) return;
         if (session?.user) {
           setUser(session.user);
-          await loadProfile(session.user.id);
+          await loadProfile(session.user);
           updateLastLogin(session.user.id);
         } else {
           setUser(null);
@@ -55,7 +71,7 @@ export function AuthProvider({ children }) {
         if (!mounted.current) return;
         if (session?.user) {
           setUser(session.user);
-          await loadProfile(session.user.id);
+          await loadProfile(session.user);
           if (event === 'SIGNED_IN') updateLastLogin(session.user.id);
         } else {
           setUser(null);
@@ -91,7 +107,7 @@ export function AuthProvider({ children }) {
     </div>
   );
 
-  const value = { user, profile, loading, refreshProfile: () => loadProfile(user?.id) };
+  const value = { user, profile, loading, refreshProfile: () => loadProfile(user) };
   return (
     <AuthContext.Provider value={value}>
       {children}
