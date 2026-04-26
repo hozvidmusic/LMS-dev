@@ -97,9 +97,7 @@ export default function PWAInstallBanner() {
           </p>
           {isIOS ? (
             <p className="text-xs" style={{ color: '#9090a8', lineHeight: 1.5 }}>
-              Toca el botón <strong style={{ color: '#7c6af7' }}>Compartir</strong> de Safari
-              y luego <strong style={{ color: '#7c6af7' }}>"Agregar a pantalla de inicio"</strong>
-              para instalarla como app.
+              Toca el botón <strong style={{ color: '#7c6af7' }}>Compartir</strong> de Safari y luego <strong style={{ color: '#7c6af7' }}>&quot;Agregar a pantalla de inicio&quot;</strong> para instalarla como app.
             </p>
           ) : deferredPrompt ? (
             <p className="text-xs" style={{ color: '#9090a8', lineHeight: 1.5 }}>
@@ -107,9 +105,7 @@ export default function PWAInstallBanner() {
             </p>
           ) : (
             <p className="text-xs" style={{ color: '#9090a8', lineHeight: 1.5 }}>
-              En Chrome, toca el ícono <strong style={{ color: '#7c6af7' }}>⋮</strong> y
-              selecciona <strong style={{ color: '#7c6af7' }}>"Instalar aplicación"</strong>
-              para agregarla a tu pantalla de inicio.
+              En Chrome, toca el ícono <strong style={{ color: '#7c6af7' }}>⋮</strong> y selecciona <strong style={{ color: '#7c6af7' }}>&quot;Instalar aplicación&quot;</strong> para agregarla a tu pantalla de inicio.
             </p>
           )}
         </div>
