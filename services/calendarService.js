@@ -23,7 +23,7 @@ export async function getEventsForStudent(userId, role) {
   if (role === 'admin') return data;
 
   const { data: pg } = await supabaseAdmin
-    .from('profile_groups').select('group_id').eq('user_id', userId).single();
+    .from('profile_groups').select('group_id').eq('user_id', userId).maybeSingle();
   const { data: psg } = await supabaseAdmin
     .from('profile_subgroups').select('subgroup_id').eq('user_id', userId);
 
