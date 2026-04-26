@@ -4,30 +4,27 @@ import { supabase } from '@/supabase/client';
 
 const AuthContext = createContext(null);
 
+function profileFromUser(u) {
+  if (!u) return null;
+  const meta = u.user_metadata || {};
+  return {
+    id: u.id,
+    username: meta.username || u.email?.split('@')[0] || '',
+    display_name: meta.display_name || meta.username || 'Usuario',
+    role: meta.role || 'student',
+    last_login: null,
+  };
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const mounted = useRef(true);
+  const initialized = useRef(false);
 
-  function profileFromUser(u) {
-    if (!u) return null;
-    const meta = u.user_metadata || {};
-    return {
-      id: u.id,
-      username: meta.username || u.email?.split('@')[0] || '',
-      display_name: meta.display_name || meta.username || 'Usuario',
-      role: meta.role || 'student',
-      last_login: null,
-    };
-  }
-
-  async function loadProfile(u) {
-    if (!u) { if (mounted.current) setProfile(null); return; }
-    // Usar metadata del JWT inmediatamente para no quedarse cargando
-    const fallback = profileFromUser(u);
-    if (mounted.current) setProfile(fallback);
-    // Intentar enriquecer con datos de la tabla profiles
+  async function enrichProfile(u) {
+    if (!u) return;
     try {
       const { data } = await supabase
         .from('profiles').select('*').eq('id', u.id).single();
@@ -45,39 +42,53 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     mounted.current = true;
 
-    async function init() {
+    // 1. Leer sesión del localStorage inmediatamente (sin red)
+    const stored = Object.keys(localStorage).find(k => k.includes('auth-token'));
+    if (stored) {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!mounted.current) return;
-        if (session?.user) {
-          setUser(session.user);
-          await loadProfile(session.user);
-          updateLastLogin(session.user.id);
-        } else {
-          setUser(null);
-          setProfile(null);
+        const parsed = JSON.parse(localStorage.getItem(stored));
+        const u = parsed?.user;
+        if (u) {
+          setUser(u);
+          setProfile(profileFromUser(u));
+          setLoading(false);
+          // Enriquecer con datos reales en background
+          enrichProfile(u);
         }
-      } catch {
-        if (mounted.current) { setUser(null); setProfile(null); }
-      } finally {
-        if (mounted.current) setLoading(false);
-      }
+      } catch {}
     }
 
-    init();
+    // 2. Verificar sesión real con Supabase
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted.current) return;
+      if (session?.user) {
+        setUser(session.user);
+        if (!profile) setProfile(profileFromUser(session.user));
+        enrichProfile(session.user);
+        updateLastLogin(session.user.id);
+      } else {
+        setUser(null);
+        setProfile(null);
+      }
+      setLoading(false);
+    }).catch(() => {
+      if (mounted.current) setLoading(false);
+    });
 
+    // 3. Escuchar cambios de sesión
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted.current) return;
         if (session?.user) {
           setUser(session.user);
-          await loadProfile(session.user);
+          setProfile(profileFromUser(session.user));
+          enrichProfile(session.user);
           if (event === 'SIGNED_IN') updateLastLogin(session.user.id);
-        } else {
+        } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setProfile(null);
         }
-        if (mounted.current) setLoading(false);
+        setLoading(false);
       }
     );
 
@@ -107,7 +118,7 @@ export function AuthProvider({ children }) {
     </div>
   );
 
-  const value = { user, profile, loading, refreshProfile: () => loadProfile(user) };
+  const value = { user, profile, loading, refreshProfile: () => enrichProfile(user) };
   return (
     <AuthContext.Provider value={value}>
       {children}
