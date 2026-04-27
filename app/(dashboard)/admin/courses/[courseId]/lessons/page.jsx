@@ -327,41 +327,7 @@ export default function AdminLessons() {
             onDragEnter={() => handleDragEnter(index)}
             onDragEnd={handleDragEnd}
             onDragOver={e => e.preventDefault()}>
-            <Card>
-              <div className="flex items-center gap-4">
-                <MdDragIndicator className="cursor-grab flex-shrink-0" style={{ color: '#5a5a70' }} size={20} />
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
-                  style={{ background: '#7c6af720', color: '#7c6af7' }}>
-                  {index + 1}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium text-white">{lesson.title}</h3>
-                    <Badge status={lesson.status} />
-                  </div>
-                  {lesson.description && (
-                    <p className="text-xs mt-0.5" style={{ color: '#5a5a70' }}>{lesson.description}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                  <Button size="sm" variant="secondary"
-                    onClick={() => { setSelected({...lesson}); setShowEdit(true); }}>
-                    <MdEdit />
-                  </Button>
-                  <Button size="sm" variant={lesson.status === 'active' ? 'danger' : 'secondary'}
-                    onClick={async () => { await toggleLessonStatus(lesson.id, lesson.status); toast.success('Estado actualizado'); load(); }}>
-                    {lesson.status === 'active' ? 'Desactivar' : 'Activar'}
-                  </Button>
-                  <Button size="sm" variant="secondary"
-                    onClick={() => { setSelected(lesson); setShowContents(true); }}>
-                    Contenido
-                  </Button>
-                  <Button size="sm" variant="danger" onClick={() => handleDelete(lesson)}>
-                    <MdDelete />
-                  </Button>
-                </div>
-              </div>
-            </Card>
+            <Card>              <div className="flex flex-col gap-3">                <div className="flex items-center gap-3">                  <MdDragIndicator className="cursor-grab flex-shrink-0" style={{ color: '#5a5a70' }} size={20} />                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"                    style={{ background: '#7c6af720', color: '#7c6af7' }}>                    {index + 1}                  </div>                  <div className="flex-1 min-w-0">                    <div className="flex items-center gap-2 flex-wrap">                      <h3 className="font-medium text-white">{lesson.title}</h3>                      <Badge status={lesson.status} />                    </div>                    {lesson.description && (                      <p className="text-xs mt-0.5" style={{ color: '#5a5a70' }}>{lesson.description}</p>                    )}                  </div>                </div>                <div className="flex items-center gap-2 flex-wrap">                  <Button size="sm" variant="secondary"                    onClick={() => { setSelected({...lesson}); setShowEdit(true); }}>                    <MdEdit />                  </Button>                  <Button size="sm" variant={lesson.status === 'active' ? 'danger' : 'secondary'}                    onClick={async () => { await toggleLessonStatus(lesson.id, lesson.status); toast.success('Estado actualizado'); load(); }}>                    {lesson.status === 'active' ? 'Desactivar' : 'Activar'}                  </Button>                  <Button size="sm" variant="secondary"                    onClick={() => { setSelected(lesson); setShowContents(true); }}>                    Contenido                  </Button>                  <Button size="sm" variant="danger" onClick={() => handleDelete(lesson)}>                    <MdDelete />                  </Button>                </div>              </div>            </Card>
           </div>
         ))}
         {lessons.length === 0 && (
