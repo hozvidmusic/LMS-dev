@@ -305,33 +305,35 @@ export default function AdminCalendar() {
               const past = isPast(ev);
               return (
                 <Card key={ev.id}>
-                  <div className="flex items-start gap-3">
-                    <div className="w-3 h-3 rounded-full mt-1.5 flex-shrink-0"
-                      style={{ background: TYPE_CONFIG[ev.type]?.color || '#7c6af7' }} />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="font-semibold text-white">{ev.title}</h4>
-                        <span className="text-xs px-2 py-0.5 rounded-full"
-                          style={{ background: TYPE_CONFIG[ev.type]?.color + '20', color: TYPE_CONFIG[ev.type]?.color }}>
-                          {TYPE_CONFIG[ev.type]?.label}
-                        </span>
-                        {ev.type === 'class' && ev.modality && (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-3 h-3 rounded-full mt-1.5 flex-shrink-0"
+                        style={{ background: TYPE_CONFIG[ev.type]?.color || '#7c6af7' }} />
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-white mb-1">{ev.title}</h4>
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-xs px-2 py-0.5 rounded-full"
-                            style={{ background: MODALITY_CONFIG[ev.modality]?.color + '20', color: MODALITY_CONFIG[ev.modality]?.color }}>
-                            {MODALITY_CONFIG[ev.modality]?.label}
+                            style={{ background: TYPE_CONFIG[ev.type]?.color + '20', color: TYPE_CONFIG[ev.type]?.color }}>
+                            {TYPE_CONFIG[ev.type]?.label}
                           </span>
-                        )}
-                        <TargetBadge ev={ev} />
-                        {past && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#5a5a7020', color: '#5a5a70' }}>Pasado</span>}
+                          {ev.type === 'class' && ev.modality && (
+                            <span className="text-xs px-2 py-0.5 rounded-full"
+                              style={{ background: MODALITY_CONFIG[ev.modality]?.color + '20', color: MODALITY_CONFIG[ev.modality]?.color }}>
+                              {MODALITY_CONFIG[ev.modality]?.label}
+                            </span>
+                          )}
+                          <TargetBadge ev={ev} />
+                          {past && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#5a5a7020', color: '#5a5a70' }}>Pasado</span>}
+                        </div>
+                        {ev.description && <p className="text-sm mt-1" style={{ color: '#9090a8' }}>{ev.description}</p>}
+                        <p className="text-xs mt-1" style={{ color: '#5a5a70' }}>
+                          {String.fromCodePoint(0x1F550)} {formatTime(ev.starts_at)}{ev.ends_at ? ' — ' + formatTime(ev.ends_at) : ''}
+                        </p>
                       </div>
-                      {ev.description && <p className="text-sm mt-1" style={{ color: '#9090a8' }}>{ev.description}</p>}
-                      <p className="text-xs mt-1" style={{ color: '#5a5a70' }}>
-                        🕐 {formatTime(ev.starts_at)}{ev.ends_at ? ` — ${formatTime(ev.ends_at)}` : ''}
-                      </p>
                     </div>
-                    <div className="flex gap-1 flex-shrink-0 flex-wrap justify-end">
+                    <div className="flex gap-2 flex-wrap">
                       {past && (
-                        <Button size="sm" variant="secondary" onClick={() => openRatings(ev)}>⭐ Evaluaciones</Button>
+                        <Button size="sm" variant="secondary" onClick={() => openRatings(ev)}>Evaluaciones</Button>
                       )}
                       <Button size="sm" variant="secondary" onClick={() => {
                         const toLocal = iso => iso ? new Date(iso).toISOString().slice(0,16) : '';
