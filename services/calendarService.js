@@ -2,7 +2,6 @@ import { getAdminClient } from '@/supabase/adminClient';
 
 const supabaseAdmin = getAdminClient();
 
-
 export async function getAllEvents() {
   const { data, error } = await supabaseAdmin
     .from('calendar_events')
@@ -19,8 +18,10 @@ export async function getEventsForStudent(userId, role) {
     .order('starts_at', { ascending: true });
   if (error) throw error;
 
-  // El admin ve todos los eventos
-  if (role === 'admin') return data;
+  const { data: profileData } = await supabaseAdmin
+    .from('profiles').select('role').eq('id', userId).single();
+
+  if (role === 'admin' || profileData?.role === 'admin') return data;
 
   const { data: pg } = await supabaseAdmin
     .from('profile_groups').select('group_id').eq('user_id', userId).maybeSingle();
