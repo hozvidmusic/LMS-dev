@@ -100,24 +100,22 @@ export default function AdminLessons() {
             onDragEnd={handleDragEnd}
             onDragOver={e => e.preventDefault()}>
             <Card>
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-3">
-                  <MdDragIndicator className="cursor-grab flex-shrink-0" style={{ color: '#5a5a70' }} size={20} />
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
-                    style={{ background: '#7c6af720', color: '#7c6af7' }}>
-                    {index + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
-                      <h3 className="font-medium text-white">{lesson.title}</h3>
-                      <Badge status={lesson.status} />
-                    </div>
-                    {lesson.description && (
-                      <p className="text-xs mt-0.5" style={{ color: '#5a5a70' }}>{lesson.description}</p>
-                    )}
-                  </div>
+              <div className="flex items-center gap-4 flex-wrap">
+                <MdDragIndicator className="cursor-grab flex-shrink-0" style={{ color: '#5a5a70' }} size={20} />
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
+                  style={{ background: '#7c6af720', color: '#7c6af7' }}>
+                  {index + 1}
                 </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
+                <div className="flex-1 min-w-0" style={{ minWidth: '120px' }}>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-medium text-white">{lesson.title}</h3>
+                    <Badge status={lesson.status} />
+                  </div>
+                  {lesson.description && (
+                    <p className="text-xs mt-0.5" style={{ color: '#5a5a70' }}>{lesson.description}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
                   <Button size="sm" variant="secondary"
                     onClick={() => { setSelected({...lesson}); setShowEdit(true); }}>
                     <MdEdit />
