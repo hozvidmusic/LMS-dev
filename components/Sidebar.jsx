@@ -231,25 +231,34 @@ function LessonSidebar({ courseId, lessonId, profile, onLogout, onClose }) {
         </div>
       )}
       <nav className="flex flex-col gap-1 flex-1 overflow-y-auto">
-        {lessons.map(l => {
+        {lessons.map((l, index) => {
           const isDone = completed.includes(l.id);
           const isActive = l.id === lessonId;
+          const now = new Date();
+          const lockedByDate = l.unlock_date && new Date(l.unlock_date) > now;
+          const lockedByPrev = l.requires_previous && index > 0 && !completed.includes(lessons[index-1].id);
+          const isLocked = lockedByDate || lockedByPrev;
           return (
             <button key={l.id}
-              onClick={() => { router.push(`/courses/${courseId}/lessons/${l.id}`); onClose?.(); }}
+              onClick={() => { if (!isLocked) { router.push('/courses/' + courseId + '/lessons/' + l.id); onClose?.(); } }}
+              disabled={isLocked}
               className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-left transition-all w-full"
               style={{
                 background: isActive ? color + '20' : 'transparent',
-                border: `1px solid ${isActive ? color + '40' : 'transparent'}`,
+                border: '1px solid ' + (isActive ? color + '40' : 'transparent'),
+                opacity: isLocked ? 0.5 : 1,
+                cursor: isLocked ? 'not-allowed' : 'pointer',
               }}
-              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#22222e'; }}
-              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}>
+              onMouseEnter={e => { if (!isActive && !isLocked) e.currentTarget.style.background = '#22222e'; }}
+              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = isActive ? color + '20' : 'transparent'; }}>
               {isDone
                 ? <MdCheckCircle className="flex-shrink-0 text-lg" style={{ color }} />
-                : <MdRadioButtonUnchecked className="flex-shrink-0 text-lg" style={{ color: '#5a5a70' }} />
+                : isLocked
+                  ? <MdLock className="flex-shrink-0 text-lg" style={{ color: '#5a5a70' }} />
+                  : <MdRadioButtonUnchecked className="flex-shrink-0 text-lg" style={{ color: '#5a5a70' }} />
               }
               <span className="text-sm truncate"
-                style={{ color: isActive ? '#e8e8f0' : isDone ? '#9090a8' : '#c0c0d0' }}>
+                style={{ color: isActive ? '#e8e8f0' : isDone ? '#9090a8' : isLocked ? '#5a5a70' : '#c0c0d0' }}>
                 {l.title}
               </span>
             </button>
