@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 import {
   MdDashboard, MdAnnouncement,
   MdLibraryBooks, MdPerson, MdPeople, MdSchool, MdLogout,
-  MdCheckCircle, MdRadioButtonUnchecked, MdChevronLeft,
+  MdCheckCircle, MdRadioButtonUnchecked, MdLock, MdChevronLeft,
   MdAssignment, MdExpandMore, MdExpandLess, MdVisibility,
   MdEvent, MdClose
 } from 'react-icons/md';
