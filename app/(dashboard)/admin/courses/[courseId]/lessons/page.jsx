@@ -100,7 +100,7 @@ export default function AdminLessons() {
             onDragEnd={handleDragEnd}
             onDragOver={e => e.preventDefault()}>
             <Card>
-              <div className="flex items-center gap-4 flex-wrap">
+              <div style={{display:"flex",alignItems:"center",gap:"12px",justifyContent:"space-between"}}>
                 <MdDragIndicator className="cursor-grab flex-shrink-0" style={{ color: '#5a5a70' }} size={20} />
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
                   style={{ background: '#7c6af720', color: '#7c6af7' }}>
