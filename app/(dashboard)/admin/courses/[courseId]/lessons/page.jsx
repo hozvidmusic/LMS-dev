@@ -7,42 +7,50 @@ import {
   updateLessonsOrder,
 } from '@/services/courseService';
 import { supabase } from '@/supabase/client';
+import { getAdminClient } from '@/supabase/adminClient';
 import { MdAdd, MdEdit, MdDelete, MdDragIndicator, MdChevronLeft, MdExpandMore, MdExpandLess } from 'react-icons/md';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
-import toast from 'react-hot-toast';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import toast from 'react-hot-toast';
 
-function ItemForm({ contentId, onSave, onCancel }) {
+const supabaseAdmin = getAdminClient();
+
+function ItemForm({ contentId, onSave, onCancel, initialData }) {
   const TYPES = [
-    { id: 'text', label: '📝 Texto' },
-    { id: 'youtube', label: '▶️ YouTube' },
-    { id: 'video', label: '🎬 Video' },
-    { id: 'audio', label: '🎵 Audio' },
-    { id: 'image', label: '🖼️ Imagen' },
-    { id: 'pdf', label: '📄 PDF' },
-    { id: 'link', label: '🔗 Enlace' },
+    { id: 'text', label: 'Texto' },
+    { id: 'youtube', label: 'YouTube' },
+    { id: 'video', label: 'Video' },
+    { id: 'audio', label: 'Audio' },
+    { id: 'image', label: 'Imagen' },
+    { id: 'pdf', label: 'PDF' },
+    { id: 'link', label: 'Enlace' },
   ];
-  const [form, setForm] = useState({ type: 'text', title: '', value: '', file_url: '' });
+  const [form, setForm] = useState(initialData || { type: 'text', title: '', value: '', file_url: '' });
 
   async function handleSubmit(e) {
     e.preventDefault();
-    const { data: existing } = await supabase.from('items').select('id').eq('content_id', contentId);
-    const sort_order = (existing?.length || 0) + 1;
     const payload = {
       content_id: contentId,
       type: form.type,
       title: form.title || null,
-      sort_order,
       value: form.type === 'text' ? form.value : form.file_url,
       file_url: form.type !== 'text' ? form.file_url : null,
     };
-    const { error } = await supabase.from('items').insert(payload);
-    if (error) { toast.error('Error al crear: ' + error.message); return; }
-    toast.success('Ítem creado');
+    if (initialData) {
+      const { error } = await supabaseAdmin.from('items').update(payload).eq('id', initialData.id);
+      if (error) { toast.error('Error al actualizar'); return; }
+      toast.success('Item actualizado');
+    } else {
+      const { data: existing } = await supabaseAdmin.from('items').select('id').eq('content_id', contentId);
+      payload.sort_order = (existing?.length || 0) + 1;
+      const { error } = await supabaseAdmin.from('items').insert(payload);
+      if (error) { toast.error('Error al crear: ' + error.message); return; }
+      toast.success('Item creado');
+    }
     onSave();
   }
 
@@ -57,13 +65,13 @@ function ItemForm({ contentId, onSave, onCancel }) {
             style={{
               background: form.type === t.id ? '#7c6af720' : '#22222e',
               color: form.type === t.id ? '#7c6af7' : '#9090a8',
-              border: 'border: 1px solid ' + (form.type === t.id ? '#7c6af740' : 'transparent'),
+              border: form.type === t.id ? '1px solid #7c6af740' : '1px solid transparent',
             }}>
             {t.label}
           </button>
         ))}
       </div>
-      <Input label="Título (opcional)" value={form.title}
+      <Input label="Titulo (opcional)" value={form.title}
         onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
       {form.type === 'text'
         ? <RichTextEditor value={form.value} onChange={v => setForm(p => ({ ...p, value: v }))} />
@@ -74,7 +82,7 @@ function ItemForm({ contentId, onSave, onCancel }) {
             onChange={e => setForm(p => ({ ...p, file_url: e.target.value }))} />
       }
       <div className="flex gap-2">
-        <Button type="submit" size="sm" className="flex-1">Guardar ítem</Button>
+        <Button type="submit" size="sm" className="flex-1">{initialData ? 'Actualizar' : 'Guardar'} item</Button>
         <Button type="button" size="sm" variant="secondary" onClick={onCancel}>Cancelar</Button>
       </div>
     </form>
@@ -85,11 +93,13 @@ function ContentBlock({ content, onReload }) {
   const [expanded, setExpanded] = useState(false);
   const [items, setItems] = useState([]);
   const [showAddItem, setShowAddItem] = useState(false);
+  const [showEditItem, setShowEditItem] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
   const [showEditContent, setShowEditContent] = useState(false);
   const [editForm, setEditForm] = useState({ title: content.title, description: content.description || '' });
 
   async function loadItems() {
-    const { data } = await supabase.from('items').select('*')
+    const { data } = await supabaseAdmin.from('items').select('*')
       .eq('content_id', content.id).order('sort_order', { ascending: true });
     setItems(data || []);
   }
@@ -104,11 +114,27 @@ function ContentBlock({ content, onReload }) {
     onReload();
   }
 
+  async function handleDeleteContent() {
+    if (!confirm('Eliminar este contenido y todos sus items?')) return;
+    await supabaseAdmin.from('items').delete().eq('content_id', content.id);
+    await supabaseAdmin.from('contents').delete().eq('id', content.id);
+    toast.success('Contenido eliminado');
+    onReload();
+  }
+
   async function handleDeleteItem(id) {
-    if (!confirm('¿Eliminar este ítem?')) return;
-    await supabase.from('items').delete().eq('id', id);
-    toast.success('Ítem eliminado');
+    if (!confirm('Eliminar este item?')) return;
+    await supabaseAdmin.from('items').delete().eq('id', id);
+    toast.success('Item eliminado');
     loadItems();
+  }
+
+  function handleEditItem(item) {
+    setSelectedItem({
+      ...item,
+      file_url: item.file_url || item.value || '',
+    });
+    setShowEditItem(true);
   }
 
   return (
@@ -125,6 +151,7 @@ function ContentBlock({ content, onReload }) {
             onClick={async () => { await toggleContentStatus(content.id, content.status); onReload(); }}>
             {content.status === 'active' ? 'Desactivar' : 'Activar'}
           </Button>
+          <Button size="sm" variant="danger" onClick={handleDeleteContent}><MdDelete /></Button>
         </div>
       </div>
       {expanded && (
@@ -132,33 +159,46 @@ function ContentBlock({ content, onReload }) {
           {items.map(item => (
             <div key={item.id} className="flex items-center justify-between px-3 py-2 rounded-lg"
               style={{ background: '#16161f', border: '1px solid #2a2a38' }}>
-              <div>
+              <div className="flex-1 min-w-0">
                 <span className="text-xs font-medium" style={{ color: '#7c6af7' }}>{item.type}</span>
                 {item.title && <span className="text-sm text-white ml-2">{item.title}</span>}
               </div>
-              <Button size="sm" variant="danger" onClick={() => handleDeleteItem(item.id)}><MdDelete /></Button>
+              <div className="flex gap-1 flex-shrink-0">
+                <Button size="sm" variant="secondary" onClick={() => handleEditItem(item)}><MdEdit /></Button>
+                <Button size="sm" variant="danger" onClick={() => handleDeleteItem(item.id)}><MdDelete /></Button>
+              </div>
             </div>
           ))}
           {items.length === 0 && !showAddItem && (
-            <p className="text-xs text-center py-2" style={{ color: '#5a5a70' }}>Sin ítems todavía.</p>
+            <p className="text-xs text-center py-2" style={{ color: '#5a5a70' }}>Sin items todavia.</p>
           )}
           {showAddItem
             ? <ItemForm contentId={content.id} onSave={() => { setShowAddItem(false); loadItems(); }} onCancel={() => setShowAddItem(false)} />
-            : <Button size="sm" variant="secondary" onClick={() => setShowAddItem(true)}><MdAdd /> Agregar ítem</Button>}
+            : <Button size="sm" variant="secondary" onClick={() => setShowAddItem(true)}><MdAdd /> Agregar item</Button>}
         </div>
       )}
       {showEditContent && (
         <Modal isOpen onClose={() => setShowEditContent(false)} title="Editar contenido">
           <form onSubmit={handleEditContent} className="flex flex-col gap-4">
-            <Input label="Título" value={editForm.title}
+            <Input label="Titulo" value={editForm.title}
               onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} />
-            <Input label="Descripción" value={editForm.description}
+            <Input label="Descripcion" value={editForm.description}
               onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} />
             <div className="flex gap-3">
               <Button type="submit" className="flex-1">Guardar</Button>
               <Button type="button" variant="secondary" onClick={() => setShowEditContent(false)}>Cancelar</Button>
             </div>
           </form>
+        </Modal>
+      )}
+      {showEditItem && selectedItem && (
+        <Modal isOpen onClose={() => { setShowEditItem(false); setSelectedItem(null); }} title="Editar item">
+          <ItemForm
+            contentId={content.id}
+            initialData={selectedItem}
+            onSave={() => { setShowEditItem(false); setSelectedItem(null); loadItems(); }}
+            onCancel={() => { setShowEditItem(false); setSelectedItem(null); }}
+          />
         </Modal>
       )}
     </div>
@@ -192,14 +232,14 @@ function LessonContentModal({ lesson, onClose }) {
           <ContentBlock key={content.id} content={content} onReload={loadContents} />
         ))}
         {contents.length === 0 && !showAddContent && (
-          <p className="text-sm text-center py-4" style={{ color: '#5a5a70' }}>Esta lección no tiene contenidos todavía.</p>
+          <p className="text-sm text-center py-4" style={{ color: '#5a5a70' }}>Sin contenidos todavia.</p>
         )}
         {showAddContent
           ? <form onSubmit={handleAddContent} className="flex flex-col gap-3 p-4 rounded-xl"
               style={{ background: '#0f0f13', border: '1px solid #2a2a38' }}>
-              <Input label="Título del contenido" value={contentForm.title} required
+              <Input label="Titulo del contenido" value={contentForm.title} required
                 onChange={e => setContentForm(p => ({ ...p, title: e.target.value }))} />
-              <Input label="Descripción (opcional)" value={contentForm.description}
+              <Input label="Descripcion (opcional)" value={contentForm.description}
                 onChange={e => setContentForm(p => ({ ...p, description: e.target.value }))} />
               <div className="flex gap-2">
                 <Button type="submit" size="sm" className="flex-1">Crear contenido</Button>
@@ -228,13 +268,12 @@ export default function AdminLessons() {
   async function load() {
     setLessons(await getLessonsByCourse(courseId));
   }
-
   useEffect(() => { load(); }, [courseId]);
 
   async function handleCreate(e) {
     e.preventDefault();
     await createLesson({ courseId, ...form });
-    toast.success('Lección creada');
+    toast.success('Leccion creada');
     setShowCreate(false);
     setForm({ title: '', description: '' });
     load();
@@ -243,16 +282,16 @@ export default function AdminLessons() {
   async function handleEdit(e) {
     e.preventDefault();
     await updateLesson(selected.id, { title: selected.title, description: selected.description });
-    toast.success('Lección actualizada');
+    toast.success('Leccion actualizada');
     setShowEdit(false);
     load();
   }
 
   async function handleDelete(lesson) {
-    if (!confirm(`¿Eliminar "${lesson.title}"?`)) return;
-    const { error } = await supabase.from('lessons').delete().eq('id', lesson.id);
-    if (error) { toast.error('Error al eliminar lección'); return; }
-    toast.success('Lección eliminada');
+    if (!confirm(`Eliminar "${lesson.title}"?`)) return;
+    const { error } = await supabaseAdmin.from('lessons').delete().eq('id', lesson.id);
+    if (error) { toast.error('Error al eliminar leccion'); return; }
+    toast.success('Leccion eliminada');
     load();
   }
 
@@ -271,19 +310,16 @@ export default function AdminLessons() {
   return (
     <div className="max-w-4xl mx-auto">
       <button onClick={() => router.push('/admin/courses')}
-        className="flex items-center gap-1 text-sm mb-4" style={{ color: '#9090a8' }}
-        onMouseEnter={e => e.currentTarget.style.color = '#7c6af7'}
-        onMouseLeave={e => e.currentTarget.style.color = '#9090a8'}>
+        className="flex items-center gap-1 text-sm mb-4" style={{ color: '#9090a8' }}>
         <MdChevronLeft /> Volver a cursos
       </button>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-display font-bold text-2xl text-white">Lecciones</h1>
-          <p className="text-sm mt-1" style={{ color: '#5a5a70' }}>{lessons.length} lecciones · Arrastra para reordenar</p>
+          <p className="text-sm mt-1" style={{ color: '#5a5a70' }}>{lessons.length} lecciones</p>
         </div>
-        <Button onClick={() => setShowCreate(true)}><MdAdd /> Nueva lección</Button>
+        <Button onClick={() => setShowCreate(true)}><MdAdd /> Nueva leccion</Button>
       </div>
-
       <div className="flex flex-col gap-3">
         {lessons.map((lesson, index) => (
           <div key={lesson.id} draggable
@@ -294,7 +330,7 @@ export default function AdminLessons() {
             <Card>
               <div className="flex items-center gap-4">
                 <MdDragIndicator className="cursor-grab flex-shrink-0" style={{ color: '#5a5a70' }} size={20} />
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold"
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
                   style={{ background: '#7c6af720', color: '#7c6af7' }}>
                   {index + 1}
                 </div>
@@ -307,7 +343,7 @@ export default function AdminLessons() {
                     <p className="text-xs mt-0.5" style={{ color: '#5a5a70' }}>{lesson.description}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
                   <Button size="sm" variant="secondary"
                     onClick={() => { setSelected({...lesson}); setShowEdit(true); }}>
                     <MdEdit />
@@ -318,7 +354,7 @@ export default function AdminLessons() {
                   </Button>
                   <Button size="sm" variant="secondary"
                     onClick={() => { setSelected(lesson); setShowContents(true); }}>
-                    📋 Gestionar contenido
+                    Contenido
                   </Button>
                   <Button size="sm" variant="danger" onClick={() => handleDelete(lesson)}>
                     <MdDelete />
@@ -329,15 +365,14 @@ export default function AdminLessons() {
           </div>
         ))}
         {lessons.length === 0 && (
-          <Card><p className="text-center py-8" style={{ color: '#5a5a70' }}>Sin lecciones. ¡Crea la primera!</p></Card>
+          <Card><p className="text-center py-8" style={{ color: '#5a5a70' }}>Sin lecciones. Crea la primera!</p></Card>
         )}
       </div>
-
-      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Nueva lección">
+      <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Nueva leccion">
         <form onSubmit={handleCreate} className="flex flex-col gap-4">
-          <Input label="Título" value={form.title} required
+          <Input label="Titulo" value={form.title} required
             onChange={e => setForm(p => ({...p, title: e.target.value}))} />
-          <Input label="Descripción" value={form.description}
+          <Input label="Descripcion" value={form.description}
             onChange={e => setForm(p => ({...p, description: e.target.value}))} />
           <div className="flex gap-3 pt-2">
             <Button type="submit" className="flex-1">Crear</Button>
@@ -345,13 +380,12 @@ export default function AdminLessons() {
           </div>
         </form>
       </Modal>
-
       {selected && showEdit && (
-        <Modal isOpen onClose={() => setShowEdit(false)} title="Editar lección">
+        <Modal isOpen onClose={() => setShowEdit(false)} title="Editar leccion">
           <form onSubmit={handleEdit} className="flex flex-col gap-4">
-            <Input label="Título" value={selected.title}
+            <Input label="Titulo" value={selected.title}
               onChange={e => setSelected(p => ({...p, title: e.target.value}))} />
-            <Input label="Descripción" value={selected.description || ''}
+            <Input label="Descripcion" value={selected.description || ''}
               onChange={e => setSelected(p => ({...p, description: e.target.value}))} />
             <div className="flex gap-3 pt-2">
               <Button type="submit" className="flex-1">Guardar</Button>
@@ -360,7 +394,6 @@ export default function AdminLessons() {
           </form>
         </Modal>
       )}
-
       {selected && showContents && (
         <LessonContentModal lesson={selected} onClose={() => { setShowContents(false); setSelected(null); }} />
       )}
