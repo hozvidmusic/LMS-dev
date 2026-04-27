@@ -100,7 +100,7 @@ export default function AdminLessons() {
             <Card>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
-                  <MdDragIndicator style={{ color: '#5a5a70', flexShrink: 0, cursor: 'grab' }} size={20} />
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", justifyContent: "space-between", flexWrap: "wrap" }}>
                   <div style={{ width: 32, height: 32, borderRadius: 8, background: '#7c6af720', color: '#7c6af7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
                     {index + 1}
                   </div>
