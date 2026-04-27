@@ -50,7 +50,7 @@ export default function AdminLessons() {
   }
 
   async function handleDelete(lesson) {
-    if (!confirm('Eliminar "' + lesson.title + '"?')) return;
+    if (!confirm('Eliminar esta leccion?')) return;
     const { error } = await supabaseAdmin.from('lessons').delete().eq('id', lesson.id);
     if (error) { toast.error('Error al eliminar'); return; }
     toast.success('Leccion eliminada');
@@ -89,7 +89,6 @@ export default function AdminLessons() {
         </div>
         <Button onClick={() => setShowCreate(true)}><MdAdd /> Nueva leccion</Button>
       </div>
-
       <div className="flex flex-col gap-3">
         {lessons.map((lesson, index) => (
           <div key={lesson.id} draggable
@@ -98,23 +97,21 @@ export default function AdminLessons() {
             onDragEnd={handleDragEnd}
             onDragOver={e => e.preventDefault()}>
             <Card>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", justifyContent: "space-between", flexWrap: "wrap" }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: '#7c6af720', color: '#7c6af7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-                    {index + 1}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <h3 style={{ fontWeight: 500, color: 'white', margin: 0 }}>{lesson.title}</h3>
-                      <Badge status={lesson.status} />
-                    </div>
-                    {lesson.description && (
-                      <p style={{ fontSize: 12, color: '#5a5a70', margin: 0 }}>{lesson.description}</p>
-                    )}
-                  </div>
+              <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                <MdDragIndicator style={{ color:'#5a5a70', flexShrink:0, cursor:'grab' }} size={20} />
+                <div style={{ width:32, height:32, borderRadius:8, background:'#7c6af720', color:'#7c6af7', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, flexShrink:0 }}>
+                  {index + 1}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                <div style={{ flex:1, minWidth:120 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                    <h3 style={{ fontWeight:500, color:'white', margin:0 }}>{lesson.title}</h3>
+                    <Badge status={lesson.status} />
+                  </div>
+                  {lesson.description && (
+                    <p style={{ fontSize:12, color:'#5a5a70', margin:0 }}>{lesson.description}</p>
+                  )}
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0, flexWrap:'wrap' }}>
                   <Button size="sm" variant="secondary"
                     onClick={() => { setSelected({...lesson}); setShowEdit(true); }}>
                     <MdEdit />
@@ -136,10 +133,9 @@ export default function AdminLessons() {
           </div>
         ))}
         {lessons.length === 0 && (
-          <Card><p className="text-center py-8" style={{ color: '#5a5a70' }}>Sin lecciones. Crea la primera!</p></Card>
+          <Card><p className="text-center py-8" style={{ color:'#5a5a70' }}>Sin lecciones. Crea la primera!</p></Card>
         )}
       </div>
-
       <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Nueva leccion">
         <form onSubmit={handleCreate} className="flex flex-col gap-4">
           <Input label="Titulo" value={form.title} required
@@ -152,7 +148,6 @@ export default function AdminLessons() {
           </div>
         </form>
       </Modal>
-
       {selected && showEdit && (
         <Modal isOpen onClose={() => setShowEdit(false)} title="Editar leccion">
           <form onSubmit={handleEdit} className="flex flex-col gap-4">
