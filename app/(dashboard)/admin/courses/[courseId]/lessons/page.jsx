@@ -108,7 +108,7 @@ export default function AdminLessons() {
                     {index + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
                       <h3 className="font-medium text-white">{lesson.title}</h3>
                       <Badge status={lesson.status} />
                     </div>
@@ -117,7 +117,7 @@ export default function AdminLessons() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}>
                   <Button size="sm" variant="secondary"
                     onClick={() => { setSelected({...lesson}); setShowEdit(true); }}>
                     <MdEdit />
