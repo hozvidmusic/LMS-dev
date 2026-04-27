@@ -333,7 +333,7 @@ export default function AdminCalendar() {
                     </div>
                     <div className="flex gap-2 flex-wrap">
                       {past && (
-                        <Button size="sm" variant="secondary" onClick={() => openRatings(ev)}>Evaluaciones</Button>
+                        <Button size="sm" variant="secondary" onClick={() => openRatings(ev)}>&#11088; Evaluaciones</Button>
                       )}
                       <Button size="sm" variant="secondary" onClick={() => {
                         const toLocal = iso => iso ? new Date(iso).toISOString().slice(0,16) : '';
