@@ -148,17 +148,21 @@ function StudentsTab() {
 
   async function handleDelete(student) {
     if (!confirm(`¿Eliminar a "${student.display_name}"?`)) return;
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users/${student.id}`,
-      { method: 'DELETE', headers: {
-        'apikey': process.env.NEXT_PUBLIC_SUPABASE_SERVICE_KEY,
-        'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_SERVICE_KEY}`,
-      }}
-    );
-    if (!response.ok) { toast.error('Error al eliminar alumno'); return; }
-    await supabase.from('profiles').delete().eq('id', student.id);
-    toast.success('Alumno eliminado');
-    load();
+    try {
+      const { getAdminClient } = await import('@/supabase/adminClient');
+      const admin = getAdminClient();
+      await admin.from('profile_groups').delete().eq('user_id', student.id);
+      await admin.from('profile_subgroups').delete().eq('user_id', student.id);
+      await admin.from('course_assignments').delete().eq('user_id', student.id);
+      await admin.from('lesson_progress').delete().eq('user_id', student.id);
+      await admin.from('event_ratings').delete().eq('user_id', student.id);
+      await admin.from('profiles').delete().eq('id', student.id);
+      await admin.auth.admin.deleteUser(student.id);
+      toast.success('Alumno eliminado');
+      load();
+    } catch (err) {
+      toast.error('Error al eliminar: ' + err.message);
+    }
   }
 
   async function openGroupModal(student) {
