@@ -16,13 +16,13 @@ const supabaseAdmin = getAdminClient();
 
 function ItemForm({ contentId, onSave, onCancel, initialData }) {
   const TYPES = [
-    { id: 'text', label: 'Texto' },
-    { id: 'youtube', label: 'YouTube' },
-    { id: 'video', label: 'Video' },
-    { id: 'audio', label: 'Audio' },
-    { id: 'image', label: 'Imagen' },
-    { id: 'pdf', label: 'PDF' },
-    { id: 'link', label: 'Enlace' },
+    { id: 'text', label: '📝 Texto' },
+    { id: 'youtube', label: '▶️ YouTube' },
+    { id: 'video', label: '🎬 Video' },
+    { id: 'audio', label: '🎵 Audio' },
+    { id: 'image', label: '🖼️ Imagen' },
+    { id: 'pdf', label: '📄 PDF' },
+    { id: 'link', label: '🔗 Enlace' },
   ];
   const [form, setForm] = useState(initialData || { type: 'text', title: '', value: '', file_url: '' });
 
