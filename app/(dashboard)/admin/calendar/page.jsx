@@ -305,11 +305,10 @@ export default function AdminCalendar() {
               const past = isPast(ev);
               return (
                 <Card key={ev.id}>
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-3 h-3 rounded-full mt-1.5 flex-shrink-0"
+                  <div className="flex items-center gap-3 flex-wrap">
+                      <div className="w-3 h-3 rounded-full flex-shrink-0"
                         style={{ background: TYPE_CONFIG[ev.type]?.color || '#7c6af7' }} />
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0" style={{ minWidth: '150px' }}>
                         <h4 className="font-semibold text-white mb-1">{ev.title}</h4>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-xs px-2 py-0.5 rounded-full"
@@ -330,18 +329,17 @@ export default function AdminCalendar() {
                           {String.fromCodePoint(0x1F550)} {formatTime(ev.starts_at)}{ev.ends_at ? ' — ' + formatTime(ev.ends_at) : ''}
                         </p>
                       </div>
-                    </div>
-                    <div className="flex gap-2 flex-wrap">
-                      {past && (
-                        <Button size="sm" variant="secondary" onClick={() => openRatings(ev)}>&#11088; Evaluaciones</Button>
-                      )}
-                      <Button size="sm" variant="secondary" onClick={() => {
-                        const toLocal = iso => iso ? new Date(iso).toISOString().slice(0,16) : '';
-                        setSelected({ ...ev, starts_at: toLocal(ev.starts_at), ends_at: toLocal(ev.ends_at) });
-                        setShowEdit(true);
-                      }}><MdEdit /></Button>
-                      <Button size="sm" variant="danger" onClick={() => handleDelete(ev)}><MdDelete /></Button>
-                    </div>
+                      <div className="flex gap-2 flex-shrink-0 flex-wrap">
+                        {past && (
+                          <Button size="sm" variant="secondary" onClick={() => openRatings(ev)}>&#11088; Evaluaciones</Button>
+                        )}
+                        <Button size="sm" variant="secondary" onClick={() => {
+                          const toLocal = iso => iso ? new Date(iso).toISOString().slice(0,16) : '';
+                          setSelected({ ...ev, starts_at: toLocal(ev.starts_at), ends_at: toLocal(ev.ends_at) });
+                          setShowEdit(true);
+                        }}><MdEdit /></Button>
+                        <Button size="sm" variant="danger" onClick={() => handleDelete(ev)}><MdDelete /></Button>
+                      </div>
                   </div>
                 </Card>
               );
