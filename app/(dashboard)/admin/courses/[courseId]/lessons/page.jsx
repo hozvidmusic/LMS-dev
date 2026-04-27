@@ -6,7 +6,7 @@ import {
   updateLessonsOrder,
 } from '@/services/courseService';
 import { getAdminClient } from '@/supabase/adminClient';
-import { MdAdd, MdEdit, MdDelete, MdDragIndicator, MdChevronLeft } from 'react-icons/md';
+import { MdAdd, MdEdit, MdDelete, MdDragIndicator, MdChevronLeft, MdLock, MdLockOpen } from 'react-icons/md';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -76,6 +76,20 @@ export default function AdminLessons() {
     toast.success('Orden guardado');
   }
 
+  const [showLock, setShowLock] = useState(false);
+  const [lockForm, setLockForm] = useState({ requires_previous: false, unlock_date: '' });
+
+  async function handleSaveLock(e) {
+    e.preventDefault();
+    await supabaseAdmin.from('lessons').update({
+      requires_previous: lockForm.requires_previous,
+      unlock_date: lockForm.unlock_date ? new Date(lockForm.unlock_date).toISOString() : null,
+    }).eq('id', selected.id);
+    toast.success('Configuracion guardada');
+    setShowLock(false);
+    load();
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       <button onClick={() => router.push('/admin/courses')}
@@ -121,6 +135,18 @@ export default function AdminLessons() {
                     {lesson.status === 'active' ? 'Desactivar' : 'Activar'}
                   </Button>
                   <Button size="sm" variant="secondary"
+                    onClick={() => {
+                      setSelected(lesson);
+                      setLockForm({
+                        requires_previous: lesson.requires_previous || false,
+                        unlock_date: lesson.unlock_date ? new Date(lesson.unlock_date).toISOString().slice(0,16) : '',
+                      });
+                      setShowLock(true);
+                    }}
+                    title="Configurar bloqueo">
+                    {lesson.requires_previous || lesson.unlock_date ? <MdLock /> : <MdLockOpen />}
+                  </Button>
+                  <Button size="sm" variant="secondary"
                     onClick={() => router.push('/admin/courses/' + courseId + '/lessons/' + lesson.id + '/contents')}>
                     Contenido
                   </Button>
@@ -162,6 +188,47 @@ export default function AdminLessons() {
           </form>
         </Modal>
       )}
+      {selected && showLock && (
+        <Modal isOpen onClose={() => setShowLock(false)} title="Configurar bloqueo">
+          <form onSubmit={handleSaveLock} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-3 p-3 rounded-xl cursor-pointer"
+                style={{ background: '#0f0f13', border: '1px solid #2a2a38' }}>
+                <input type="checkbox" checked={lockForm.requires_previous}
+                  onChange={e => setLockForm(p => ({...p, requires_previous: e.target.checked}))}
+                  style={{ width: 16, height: 16, accentColor: '#7c6af7' }} />
+                <div>
+                  <p className="text-sm font-medium text-white">Requiere completar leccion anterior</p>
+                  <p className="text-xs" style={{ color: '#5a5a70' }}>El alumno debe completar la leccion anterior para desbloquear esta</p>
+                </div>
+              </label>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" style={{ color: '#9090a8' }}>
+                Fecha y hora de desbloqueo <span style={{ color: '#5a5a70' }}>(opcional)</span>
+              </label>
+              <input type="datetime-local" value={lockForm.unlock_date}
+                onChange={e => setLockForm(p => ({...p, unlock_date: e.target.value}))}
+                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+                style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
+              <p className="text-xs" style={{ color: '#5a5a70' }}>
+                Si defines una fecha, la leccion no estara disponible hasta ese momento aunque el alumno haya completado la anterior.
+              </p>
+              {lockForm.unlock_date && (
+                <button type="button" onClick={() => setLockForm(p => ({...p, unlock_date: ''}))}
+                  className="text-xs text-left" style={{ color: '#f75c6a' }}>
+                  Quitar fecha de desbloqueo
+                </button>
+              )}
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button type="submit" className="flex-1">Guardar</Button>
+              <Button type="button" variant="secondary" onClick={() => setShowLock(false)}>Cancelar</Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
     </div>
   );
 }

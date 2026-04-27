@@ -6,7 +6,24 @@ import { getCourses, getLessonsByCourse } from '@/services/courseService';
 import { getCoursesForStudent } from '@/services/assignmentService';
 import { supabase } from '@/supabase/client';
 import Card from '@/components/ui/Card';
-import { MdChevronRight, MdCheckCircle } from 'react-icons/md';
+import { MdChevronRight, MdCheckCircle, MdLock, MdSchedule } from 'react-icons/md';
+
+function isLessonUnlocked(lesson, index, lessons, completed) {
+  const now = new Date();
+  if (lesson.unlock_date && new Date(lesson.unlock_date) > now) return false;
+  if (lesson.requires_previous && index > 0) {
+    const prev = lessons[index - 1];
+    if (!completed.includes(prev.id)) return false;
+  }
+  return true;
+}
+
+function formatUnlockDate(date) {
+  return new Date(date).toLocaleDateString('es-CO', {
+    day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
 
 export default function CoursesPage() {
   const { profile } = useAuth();
@@ -43,7 +60,7 @@ export default function CoursesPage() {
       <h1 className="font-display font-bold text-2xl text-white mb-6">Mis Cursos</h1>
       {courses.length === 0 ? (
         <Card><p className="text-center py-12" style={{ color: '#5a5a70' }}>
-          No tienes cursos asignados aún.
+          No tienes cursos asignados aun.
         </p></Card>
       ) : (
         <div className="flex flex-col gap-4">
@@ -100,25 +117,47 @@ function CourseCard({ course, profile, router }) {
           </div>
           {lessons.length > 0 && (
             <div className="flex flex-col gap-2">
-              {lessons.map(lesson => {
+              {lessons.map((lesson, index) => {
+                const unlocked = isLessonUnlocked(lesson, index, lessons, completed);
                 const isCompleted = completed.includes(lesson.id);
+                const lockedByDate = lesson.unlock_date && new Date(lesson.unlock_date) > new Date();
+                const lockedByPrev = !unlocked && !lockedByDate;
+
                 return (
                   <button key={lesson.id}
-                    onClick={() => router.push(`/courses/${course.id}/lessons/${lesson.id}`)}
+                    onClick={() => unlocked && router.push('/courses/' + course.id + '/lessons/' + lesson.id)}
+                    disabled={!unlocked}
                     className="flex items-center justify-between p-3 rounded-xl text-left transition-all w-full"
-                    style={{ background: '#0f0f13', border: `1px solid ${isCompleted ? color + '40' : '#2a2a38'}` }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = color}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = isCompleted ? color + '40' : '#2a2a38'}>
-                    <div className="flex items-center gap-2">
+                    style={{
+                      background: unlocked ? '#0f0f13' : '#0a0a0f',
+                      border: isCompleted ? '1px solid ' + color + '40' : unlocked ? '1px solid #2a2a38' : '1px solid #1a1a24',
+                      opacity: unlocked ? 1 : 0.6,
+                      cursor: unlocked ? 'pointer' : 'not-allowed',
+                    }}
+                    onMouseEnter={e => { if (unlocked) e.currentTarget.style.borderColor = color; }}
+                    onMouseLeave={e => { if (unlocked) e.currentTarget.style.borderColor = isCompleted ? color + '40' : '#2a2a38'; }}>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
                       {isCompleted
-                        ? <MdCheckCircle style={{ color }} />
-                        : <div className="w-4 h-4 rounded-full border-2" style={{ borderColor: '#5a5a70' }} />
+                        ? <MdCheckCircle style={{ color, flexShrink: 0 }} />
+                        : unlocked
+                          ? <div className="w-4 h-4 rounded-full border-2 flex-shrink-0" style={{ borderColor: '#5a5a70' }} />
+                          : <MdLock style={{ color: '#5a5a70', flexShrink: 0 }} />
                       }
-                      <span className="text-sm" style={{ color: isCompleted ? '#e8e8f0' : '#c0c0d0' }}>
-                        {lesson.title}
-                      </span>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm block truncate" style={{ color: unlocked ? (isCompleted ? '#e8e8f0' : '#c0c0d0') : '#5a5a70' }}>
+                          {lesson.title}
+                        </span>
+                        {!unlocked && (
+                          <span className="text-xs" style={{ color: '#5a5a70' }}>
+                            {lockedByDate
+                              ? 'Disponible: ' + formatUnlockDate(lesson.unlock_date)
+                              : 'Completa la leccion anterior'}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <MdChevronRight style={{ color: '#5a5a70' }} />
+                    {unlocked && <MdChevronRight style={{ color: '#5a5a70', flexShrink: 0 }} />}
+                    {!unlocked && lockedByDate && <MdSchedule style={{ color: '#5a5a70', flexShrink: 0 }} />}
                   </button>
                 );
               })}
