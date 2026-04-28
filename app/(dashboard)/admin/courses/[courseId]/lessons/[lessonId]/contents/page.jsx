@@ -246,6 +246,22 @@ export default function ContentsPage() {
   const [lessonTitle, setLessonTitle] = useState('');
   const [showAddContent, setShowAddContent] = useState(false);
   const [contentForm, setContentForm] = useState({ title: '', description: '' });
+  const dragContent = useRef(null);
+  const dragContentOver = useRef(null);
+  function handleContentDragStart(index) { dragContent.current = index; }
+  function handleContentDragEnter(index) { dragContentOver.current = index; }
+  async function handleContentDragEnd() {
+    const reordered = [...contents];
+    const dragged = reordered.splice(dragContent.current, 1)[0];
+    reordered.splice(dragContentOver.current, 0, dragged);
+    dragContent.current = null; dragContentOver.current = null;
+    setContents(reordered);
+    const updates = reordered.map((c, i) =>
+      supabaseAdmin.from('contents').update({ sort_order: i + 1 }).eq('id', c.id)
+    );
+    await Promise.all(updates);
+    toast.success('Orden guardado');
+  }
 
   async function loadContents() {
     const data = await getContentsByLesson(lessonId);
