@@ -189,7 +189,6 @@ export default function Dashboard() {
       setPendingRatings(remaining);
       if (remaining.length > 0) { setCurrentRating(remaining[0]); setRatingValue(0); setAttended(null); }
       else { setShowRatingModal(false); setCurrentRating(null); }
-      await refresh();
     } catch { toast.error('Error al guardar'); }
   }
 
