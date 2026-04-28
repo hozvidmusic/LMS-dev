@@ -145,6 +145,7 @@ function ContentBlock({ content, onReload }) {
   return (
     <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #2a2a38' }}>
       <div className="flex items-center gap-3 px-4 py-3" style={{ background: '#16161f' }}>
+        <MdDragIndicator style={{ color: '#5a5a70', flexShrink: 0, cursor: 'grab' }} size={20} />
         <button onClick={() => setExpanded(p => !p)} className="flex-1 flex items-center gap-2 text-left">
           <span style={{ color: '#5a5a70' }}>{expanded ? <MdExpandLess /> : <MdExpandMore />}</span>
           <span className="text-sm font-medium text-white">{content.title}</span>
