@@ -125,7 +125,7 @@ export default function AdminLessons() {
                     <p style={{ fontSize:12, color:'#5a5a70', margin:0 }}>{lesson.description}</p>
                   )}
                 </div>
-                <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0, flexWrap:'wrap' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0, flexWrap:'wrap', maxWidth:'100%' }}>
                   <Button size="sm" variant="secondary"
                     onClick={() => { setSelected({...lesson}); setShowEdit(true); }}>
                     <MdEdit />
