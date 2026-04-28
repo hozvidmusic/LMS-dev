@@ -122,6 +122,7 @@ export default function LessonPage() {
       setCompleted(p => [...p, lessonId]);
     }
     setMarking(false);
+    window.dispatchEvent(new Event('lesson-progress-updated'));
   }
 
   const isCompleted = completed.includes(lessonId);

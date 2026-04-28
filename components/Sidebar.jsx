@@ -209,6 +209,17 @@ function LessonSidebar({ courseId, lessonId, profile, onLogout, onClose }) {
     load();
   }, [courseId, profile]);
 
+  useEffect(() => {
+    function handleUpdate() {
+      if (!profile) return;
+      supabase.from('lesson_progress').select('lesson_id')
+        .eq('user_id', profile.id).eq('completed', true)
+        .then(({ data }) => setCompleted((data || []).map(d => d.lesson_id)));
+    }
+    window.addEventListener('lesson-progress-updated', handleUpdate);
+    return () => window.removeEventListener('lesson-progress-updated', handleUpdate);
+  }, [profile]);
+
   const color = course?.color || '#7c6af7';
 
   return (
