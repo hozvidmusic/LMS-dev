@@ -282,8 +282,14 @@ export default function ContentsPage() {
       </div>
 
       <div className="flex flex-col gap-3">
-        {contents.map(content => (
-          <ContentBlock key={content.id} content={content} onReload={loadContents} />
+        {contents.map((content, index) => (
+          <div key={content.id} draggable
+            onDragStart={() => handleContentDragStart(index)}
+            onDragEnter={() => handleContentDragEnter(index)}
+            onDragEnd={handleContentDragEnd}
+            onDragOver={e => e.preventDefault()}>
+            <ContentBlock content={content} onReload={loadContents} />
+          </div>
         ))}
         {contents.length === 0 && !showAddContent && (
           <Card>
