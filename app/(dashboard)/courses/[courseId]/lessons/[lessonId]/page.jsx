@@ -11,20 +11,20 @@ function ItemRenderer({ item }) {
   switch (item.type) {
     case 'text':
       return <div className="prose prose-invert max-w-none text-sm" style={{ color: '#c8c8d8' }}
-        dangerouslySetInnerHTML={{ __html: item.content }} />;
+        dangerouslySetInnerHTML={{ __html: item.value }} />;
     case 'video':
       return <div className="rounded-xl overflow-hidden aspect-video">
-        <iframe src={item.content} className="w-full h-full" allowFullScreen
+        <iframe src={item.value} className="w-full h-full" allowFullScreen
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
       </div>;
     case 'audio':
-      return <audio controls src={item.content} className="w-full rounded-xl" />;
+      return <audio controls src={item.value} className="w-full rounded-xl" />;
     case 'image':
-      return <img src={item.content} alt={item.title || ''} className="rounded-xl max-w-full" />;
+      return <img src={item.value} alt={item.title || ''} className="rounded-xl max-w-full" />;
     case 'pdf':
-      return <iframe src={item.content} className="w-full rounded-xl" style={{ height: 500 }} />;
+      return <iframe src={item.value} className="w-full rounded-xl" style={{ height: 500 }} />;
     case 'link':
-      return <a href={item.content} target="_blank" rel="noopener noreferrer"
+      return <a href={item.value} target="_blank" rel="noopener noreferrer"
         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium"
         style={{ background: '#7c6af720', color: '#7c6af7', border: '1px solid #7c6af740' }}>
         Abrir enlace →
@@ -41,7 +41,7 @@ function ContentBlock({ content, defaultOpen }) {
   useEffect(() => {
     if (!expanded) return;
     supabase.from('items').select('*').eq('content_id', content.id)
-      .eq('status', 'active').order('sort_order', { ascending: true })
+      .or('status.eq.active,status.is.null').order('sort_order', { ascending: true })
       .then(({ data }) => setItems(data || []));
   }, [expanded, content.id]);
 

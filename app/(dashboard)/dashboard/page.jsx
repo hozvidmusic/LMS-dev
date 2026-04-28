@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useCalendar } from '@/context/CalendarContext';
 import { getCourses, getLessonsByCourse } from '@/services/courseService';
+import { getCoursesForStudent } from '@/services/assignmentService';
 import { getAllStudents } from '@/services/userService';
 import { getGroups, getAllSubgroups } from '@/services/groupService';
 import { getEventsForStudent, rateEvent } from '@/services/calendarService';
@@ -158,7 +159,8 @@ export default function Dashboard() {
 
   async function loadStudentView() {
     const courses = await getCourses();
-    const active = courses.filter(c => c.status === 'active');
+    const ids = await getCoursesForStudent(profile.id);
+    const active = courses.filter(c => c.status === 'active' && ids.includes(c.id));
     setMyCourses(active.slice(0, 4));
     setStudentStats({ courses: active.length });
     const data = await getEventsForStudent(profile.id, profile.role);
