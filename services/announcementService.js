@@ -70,6 +70,14 @@ export async function createAnnouncement({ title, body, target, group_id, subgro
   return data;
 }
 
+export async function updateAnnouncement(id, { title, body, expires_at }) {
+  const { error } = await supabaseAdmin
+    .from('announcements')
+    .update({ title, body, expires_at: expires_at || null })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 export async function deleteAnnouncement(id) {
   const { error } = await supabaseAdmin.from('announcements').delete().eq('id', id);
   if (error) throw error;

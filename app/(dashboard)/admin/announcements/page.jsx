@@ -1,14 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { getAllAnnouncements, createAnnouncement, deleteAnnouncement } from '@/services/announcementService';
+import { getAllAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/services/announcementService';
 import { getGroups, getAllSubgroups } from '@/services/groupService';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import toast from 'react-hot-toast';
-import { MdAdd, MdDelete, MdAnnouncement } from 'react-icons/md';
+import { MdAdd, MdDelete, MdAnnouncement, MdEdit } from 'react-icons/md';
 
 const EMPTY_FORM = { title: '', body: '', target: 'all', group_id: '', subgroup_id: '', expires_at: '' };
 
@@ -44,6 +44,22 @@ export default function AdminAnnouncements() {
   const [subgroups, setSubgroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editForm, setEditForm] = useState({ id: '', title: '', body: '', expires_at: '' });
+
+  async function handleEdit(e) {
+    e.preventDefault();
+    try {
+      await updateAnnouncement(editForm.id, {
+        title: editForm.title,
+        body: editForm.body,
+        expires_at: editForm.expires_at ? new Date(editForm.expires_at).toISOString() : null,
+      });
+      toast.success('Anuncio actualizado');
+      setShowEdit(false);
+      load();
+    } catch { toast.error('Error al actualizar'); }
+  }
   const [form, setForm] = useState(EMPTY_FORM);
 
   async function load() {
@@ -126,13 +142,54 @@ export default function AdminAnnouncements() {
                       )}
                     </div>
                   </div>
-                  <Button size="sm" variant="danger" onClick={() => handleDelete(a)}><MdDelete /></Button>
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="secondary" onClick={() => {
+                      setEditForm({
+                        id: a.id,
+                        title: a.title,
+                        body: a.body,
+                        expires_at: a.expires_at ? new Date(a.expires_at).toISOString().slice(0,16) : '',
+                      });
+                      setShowEdit(true);
+                    }}><MdEdit /></Button>
+                    <Button size="sm" variant="danger" onClick={() => handleDelete(a)}><MdDelete /></Button>
+                  </div>
                 </div>
               </Card>
             );
           })}
         </div>
       )}
+
+      <Modal isOpen={showEdit} onClose={() => setShowEdit(false)} title="Editar anuncio">
+        <form onSubmit={handleEdit} className="flex flex-col gap-4">
+          <Input label="Título" value={editForm.title} required
+            onChange={e => setEditForm(p => ({...p, title: e.target.value}))} />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Mensaje</label>
+            <textarea value={editForm.body} required rows={4}
+              onChange={e => setEditForm(p => ({...p, body: e.target.value}))}
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
+              style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium" style={{ color: '#9090a8' }}>
+              Fecha de expiración <span style={{ color: '#5a5a70' }}>(opcional)</span>
+            </label>
+            <input type="datetime-local" value={editForm.expires_at}
+              onChange={e => setEditForm(p => ({...p, expires_at: e.target.value}))}
+              className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
+            <p className="text-xs" style={{ color: '#5a5a70' }}>
+              Si defines una fecha, el anuncio dejará de mostrarse a los alumnos después de esa fecha.
+            </p>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <Button type="submit" className="flex-1">Guardar cambios</Button>
+            <Button type="button" variant="secondary" onClick={() => setShowEdit(false)}>Cancelar</Button>
+          </div>
+        </form>
+      </Modal>
 
       <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Nuevo anuncio">
         <form onSubmit={handleCreate} className="flex flex-col gap-4">
