@@ -170,7 +170,7 @@ export default function Dashboard() {
       const alreadyRated = e.event_ratings?.some(r => r.user_id === profile.id);
       return isPast && !alreadyRated;
     });
-    if (past.length > 0) {
+    if (past.length > 0 && !showRatingModal) {
       setPendingRatings(past);
       setCurrentRating(past[0]);
       setRatingValue(0);
