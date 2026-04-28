@@ -45,7 +45,7 @@ export default function AdminAnnouncements() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
-  const [editForm, setEditForm] = useState({ id: '', title: '', body: '', expires_at: '' });
+  const [editForm, setEditForm] = useState({ id: '', title: '', body: '', expires_at: '', target: 'all', group_id: '', subgroup_id: '' });
 
   async function handleEdit(e) {
     e.preventDefault();
@@ -54,6 +54,9 @@ export default function AdminAnnouncements() {
         title: editForm.title,
         body: editForm.body,
         expires_at: editForm.expires_at ? new Date(editForm.expires_at).toISOString() : null,
+        target: editForm.target,
+        group_id: editForm.group_id,
+        subgroup_id: editForm.subgroup_id,
       });
       toast.success('Anuncio actualizado');
       setShowEdit(false);
@@ -149,6 +152,9 @@ export default function AdminAnnouncements() {
                         title: a.title,
                         body: a.body,
                         expires_at: a.expires_at ? new Date(a.expires_at).toISOString().slice(0,16) : '',
+                        target: a.target || 'all',
+                        group_id: a.group_id || '',
+                        subgroup_id: a.subgroup_id || '',
                       });
                       setShowEdit(true);
                     }}><MdEdit /></Button>
@@ -172,6 +178,49 @@ export default function AdminAnnouncements() {
               className="w-full px-4 py-2.5 rounded-xl text-sm outline-none resize-none"
               style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }} />
           </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Dirigido a</label>
+            <div className="flex gap-2">
+              {[
+                { value: 'all', label: '🌐 Todos' },
+                { value: 'group', label: '👥 Grupo' },
+                { value: 'subgroup', label: '🔸 Subgrupo' },
+              ].map(opt => (
+                <button key={opt.value} type="button"
+                  onClick={() => setEditForm(p => ({...p, target: opt.value, group_id: '', subgroup_id: ''}))}
+                  className="flex-1 py-2 rounded-xl text-sm font-medium transition-all"
+                  style={{
+                    background: editForm.target === opt.value ? '#7c6af720' : '#0f0f13',
+                    border: `1px solid ${editForm.target === opt.value ? '#7c6af7' : '#333344'}`,
+                    color: editForm.target === opt.value ? '#7c6af7' : '#9090a8',
+                  }}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {editForm.target === 'group' && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Grupo</label>
+              <select value={editForm.group_id} onChange={e => setEditForm(p => ({...p, group_id: e.target.value}))}
+                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+                style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }}>
+                <option value="">— Selecciona grupo —</option>
+                {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </div>
+          )}
+          {editForm.target === 'subgroup' && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium" style={{ color: '#9090a8' }}>Subgrupo</label>
+              <select value={editForm.subgroup_id} onChange={e => setEditForm(p => ({...p, subgroup_id: e.target.value}))}
+                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+                style={{ background: '#0f0f13', border: '1px solid #333344', color: '#e8e8f0' }}>
+                <option value="">— Selecciona subgrupo —</option>
+                {subgroups.map(s => <option key={s.id} value={s.id}>{s.name} — {s.groups?.name}</option>)}
+              </select>
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium" style={{ color: '#9090a8' }}>
               Fecha de expiración <span style={{ color: '#5a5a70' }}>(opcional)</span>
