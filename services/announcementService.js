@@ -70,10 +70,10 @@ export async function createAnnouncement({ title, body, target, group_id, subgro
   return data;
 }
 
-export async function updateAnnouncement(id, { title, body, expires_at }) {
+export async function updateAnnouncement(id, { title, body, expires_at, target, group_id, subgroup_id }) {
   const { error } = await supabaseAdmin
     .from('announcements')
-    .update({ title, body, expires_at: expires_at || null })
+    .update({ title, body, expires_at: expires_at || null, target, group_id: group_id || null, subgroup_id: subgroup_id || null })
     .eq('id', id);
   if (error) throw error;
 }
