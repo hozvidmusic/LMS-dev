@@ -1,9 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getContentsByLesson, createContent, updateContent, toggleContentStatus } from '@/services/courseService';
 import { getAdminClient } from '@/supabase/adminClient';
-import { MdAdd, MdEdit, MdDelete, MdChevronLeft, MdExpandMore, MdExpandLess } from 'react-icons/md';
+import { MdAdd, MdEdit, MdDelete, MdChevronLeft, MdExpandMore, MdExpandLess, MdDragIndicator } from 'react-icons/md';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -93,6 +93,23 @@ function ContentBlock({ content, onReload }) {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showEditContent, setShowEditContent] = useState(false);
   const [editForm, setEditForm] = useState({ title: content.title, description: content.description || '' });
+  const dragItem = useRef(null);
+  const dragItemOver = useRef(null);
+
+  function handleDragStart(index) { dragItem.current = index; }
+  function handleDragEnter(index) { dragItemOver.current = index; }
+  async function handleDragEnd() {
+    const reordered = [...items];
+    const dragged = reordered.splice(dragItem.current, 1)[0];
+    reordered.splice(dragItemOver.current, 0, dragged);
+    dragItem.current = null; dragItemOver.current = null;
+    setItems(reordered);
+    const updates = reordered.map((item, index) =>
+      supabaseAdmin.from('items').update({ sort_order: index + 1 }).eq('id', item.id)
+    );
+    await Promise.all(updates);
+    toast.success('Orden guardado');
+  }
 
   async function loadItems() {
     const { data } = await supabaseAdmin.from('items').select('*')
@@ -145,14 +162,22 @@ function ContentBlock({ content, onReload }) {
 
       {expanded && (
         <div className="flex flex-col gap-3 p-4" style={{ background: '#0f0f13' }}>
-          {items.map(item => (
-            <div key={item.id} className="flex flex-col gap-2 p-3 rounded-xl"
-              style={{ background: '#16161f', border: '1px solid #2a2a38' }}>
+          {items.map((item, index) => (
+            <div key={item.id} draggable
+              onDragStart={() => handleDragStart(index)}
+              onDragEnter={() => handleDragEnter(index)}
+              onDragEnd={handleDragEnd}
+              onDragOver={e => e.preventDefault()}
+              className="flex flex-col gap-2 p-3 rounded-xl"
+              style={{ background: '#16161f', border: '1px solid #2a2a38', cursor: 'grab' }}>
               <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full"
-                    style={{ background: '#7c6af720', color: '#7c6af7' }}>{item.type}</span>
-                  {item.title && <span className="text-sm text-white ml-2">{item.title}</span>}
+                <div className="flex items-center gap-2">
+                  <MdDragIndicator style={{ color: '#5a5a70', flexShrink: 0 }} size={18} />
+                  <div>
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full"
+                      style={{ background: '#7c6af720', color: '#7c6af7' }}>{item.type}</span>
+                    {item.title && <span className="text-sm text-white ml-2">{item.title}</span>}
+                  </div>
                 </div>
                 <div className="flex gap-1">
                   <Button size="sm" variant="secondary" onClick={() => {
