@@ -95,7 +95,7 @@ export default function Dashboard() {
         getCourses(), getAllStudents(), getGroups(), getAllSubgroups(),
       ]);
       const activeCourses = courses.filter(c => c.status === 'active');
-      const activeStudents = students.filter(s => s.status === 'active');
+      const activeStudents = students.filter(s => s.status === 'active' && s.role === 'student');
 
       const courseProgress = await Promise.all(activeCourses.map(async course => {
         const lessons = await getLessonsByCourse(course.id);
@@ -115,13 +115,18 @@ export default function Dashboard() {
       const { data: recentProgress } = await supabaseAdmin
         .from('lesson_progress').select('user_id, created_at')
         .gte('created_at', since.toISOString()).eq('completed', true);
-      const activeThisWeek = new Set(recentProgress?.map(p => p.user_id) || []).size;
+      const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+      const activeThisWeek = (authUsers?.users || []).filter(u => {
+        if (!u.last_sign_in_at) return false;
+        const isStudent = activeStudents.some(s => s.id === u.id);
+        return isStudent && new Date(u.last_sign_in_at) >= since;
+      }).length;
 
       const since14 = new Date();
       since14.setDate(since14.getDate() - 14);
-      const { data: recentUsers } = await supabaseAdmin
-        .from('lesson_progress').select('user_id').gte('created_at', since14.toISOString());
-      const recentUserIds = new Set(recentUsers?.map(p => p.user_id) || []);
+      const recentUserIds = new Set(
+        (authUsers?.users || []).filter(u => u.last_sign_in_at && new Date(u.last_sign_in_at) >= since14).map(u => u.id)
+      );
       const inactiveStudents = activeStudents.filter(s => !recentUserIds.has(s.id));
 
       const groupProgress = await Promise.all(groups.map(async group => {
