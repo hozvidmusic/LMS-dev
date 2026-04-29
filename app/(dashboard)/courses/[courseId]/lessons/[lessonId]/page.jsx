@@ -109,7 +109,7 @@ export default function LessonPage() {
   }, [courseId, lessonId, profile]);
 
   async function toggleComplete() {
-    if (!profile || marking) return;
+    if (!profile || marking || profile.role === 'admin') return;
     setMarking(true);
     const isCompleted = completed.includes(lessonId);
     if (isCompleted) {
