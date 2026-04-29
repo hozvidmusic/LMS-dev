@@ -156,7 +156,7 @@ export default function Dashboard() {
         activeThisWeek, inactiveStudents: inactiveStudents.slice(0, 5),
         courseProgress: courseProgress.sort((a, b) => b.avgProgress - a.avgProgress),
         groupProgress: groupProgress.sort((a, b) => b.avgProgress - a.avgProgress),
-        topStudents, weeklyCompletions: recentProgress?.length || 0,
+        topStudents, weeklyCompletions: (recentProgress || []).filter(p => activeStudents.some(s => s.id === p.user_id)).length,
       });
     } catch (err) { console.error(err); }
     finally { setLoadingStats(false); }
