@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getAllAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/services/announcementService';
+import { sendPushNotification } from '@/services/notificationService';
+import { getAdminClient } from '@/supabase/adminClient';
 import { getGroups, getAllSubgroups } from '@/services/groupService';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -10,6 +12,7 @@ import Input from '@/components/ui/Input';
 import toast from 'react-hot-toast';
 import { MdAdd, MdDelete, MdAnnouncement, MdEdit } from 'react-icons/md';
 
+const supabase = getAdminClient();
 const EMPTY_FORM = { title: '', body: '', target: 'all', group_id: '', subgroup_id: '', expires_at: '' };
 
 function TargetBadge({ announcement }) {
@@ -86,6 +89,16 @@ export default function AdminAnnouncements() {
         created_by: profile.id,
         expires_at: form.expires_at ? new Date(form.expires_at).toISOString() : null,
       });
+      // Obtener destinatarios y enviar notificación
+      let user_ids = null;
+      if (form.target === 'group' && form.group_id) {
+        const { data: members } = await supabase.from('profile_groups').select('user_id').eq('group_id', form.group_id);
+        user_ids = (members || []).map(m => m.user_id);
+      } else if (form.target === 'subgroup' && form.subgroup_id) {
+        const { data: members } = await supabase.from('profile_subgroups').select('user_id').eq('subgroup_id', form.subgroup_id);
+        user_ids = (members || []).map(m => m.user_id);
+      }
+      sendPushNotification({ user_ids, title: '📢 ' + form.title, body: form.body, url: '/announcements' });
       toast.success('Anuncio publicado');
       setShowCreate(false);
       setForm(EMPTY_FORM);

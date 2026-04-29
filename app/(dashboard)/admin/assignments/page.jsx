@@ -5,6 +5,9 @@ import { getCourseAssignments, assignCourse, removeAssignment } from '@/services
 import { getAllStudents } from '@/services/userService';
 import { getGroups, getSubgroupsByGroup, getAllSubgroups } from '@/services/groupService';
 import { getGroupMembers, getSubgroupMembers } from '@/services/groupService';
+import { sendPushNotification } from '@/services/notificationService';
+import { getAdminClient } from '@/supabase/adminClient';
+const supabase = getAdminClient();
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
@@ -330,6 +333,17 @@ function AssignModal({ course, onClose, onSave }) {
         groupId: assignType === 'group' ? target : null,
         subgroupId: assignType === 'subgroup' ? target : null,
       });
+      let user_ids = null;
+      if (assignType === 'student') {
+        user_ids = [target];
+      } else if (assignType === 'group') {
+        const { data: members } = await supabase.from('profile_groups').select('user_id').eq('group_id', target);
+        user_ids = (members || []).map(m => m.user_id);
+      } else if (assignType === 'subgroup') {
+        const { data: members } = await supabase.from('profile_subgroups').select('user_id').eq('subgroup_id', target);
+        user_ids = (members || []).map(m => m.user_id);
+      }
+      sendPushNotification({ user_ids, title: '🎓 Nuevo curso disponible', body: course.title, url: '/courses' });
       toast.success('Curso asignado');
       onSave();
     } catch (err) {

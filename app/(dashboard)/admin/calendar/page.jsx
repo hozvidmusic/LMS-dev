@@ -2,6 +2,9 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getAllEvents, createEvent, updateEvent, deleteEvent, getEventRatings } from '@/services/calendarService';
+import { sendPushNotification } from '@/services/notificationService';
+import { getAdminClient } from '@/supabase/adminClient';
+const supabase = getAdminClient();
 import { getGroups, getAllSubgroups } from '@/services/groupService';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -173,6 +176,15 @@ export default function AdminCalendar() {
     if (!form.title || !form.starts_at) { toast.error('Completa título y fecha de inicio'); return; }
     try {
       await createEvent({ ...form, created_by: profile.id, starts_at: new Date(form.starts_at).toISOString(), ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null });
+      let user_ids = null;
+      if (form.target === 'group' && form.group_id) {
+        const { data: members } = await supabase.from('profile_groups').select('user_id').eq('group_id', form.group_id);
+        user_ids = (members || []).map(m => m.user_id);
+      } else if (form.target === 'subgroup' && form.subgroup_id) {
+        const { data: members } = await supabase.from('profile_subgroups').select('user_id').eq('subgroup_id', form.subgroup_id);
+        user_ids = (members || []).map(m => m.user_id);
+      }
+      sendPushNotification({ user_ids, title: '📅 Nuevo evento: ' + form.title, body: form.starts_at ? 'Fecha: ' + new Date(form.starts_at).toLocaleDateString('es-CO') : '', url: '/dashboard' });
       toast.success('Evento creado');
       setShowCreate(false);
       setForm(EMPTY_FORM);

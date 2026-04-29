@@ -1,4 +1,5 @@
 'use client';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -71,6 +72,7 @@ export default function Dashboard() {
   const { refresh } = useCalendar();
   const router = useRouter();
   const isAdmin = profile?.role === 'admin';
+  usePushNotifications(profile?.role === 'student' ? profile?.id : null);
 
   const [stats, setStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
