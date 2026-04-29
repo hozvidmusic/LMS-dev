@@ -248,7 +248,7 @@ function LessonSidebar({ courseId, lessonId, profile, onLogout, onClose }) {
           const now = new Date();
           const lockedByDate = l.unlock_date && new Date(l.unlock_date) > now;
           const lockedByPrev = l.requires_previous && index > 0 && !completed.includes(lessons[index-1].id);
-          const isLocked = lockedByDate || lockedByPrev;
+          const isLocked = profile?.role !== 'admin' && (lockedByDate || lockedByPrev);
           return (
             <button key={l.id}
               onClick={() => { if (!isLocked) { router.push('/courses/' + courseId + '/lessons/' + l.id); onClose?.(); } }}
