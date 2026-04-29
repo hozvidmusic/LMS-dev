@@ -118,7 +118,7 @@ function CourseCard({ course, profile, router }) {
           {lessons.length > 0 && (
             <div className="flex flex-col gap-2">
               {lessons.map((lesson, index) => {
-                const unlocked = isLessonUnlocked(lesson, index, lessons, completed);
+                const unlocked = profile?.role === 'admin' || isLessonUnlocked(lesson, index, lessons, completed);
                 const isCompleted = completed.includes(lesson.id);
                 const lockedByDate = lesson.unlock_date && new Date(lesson.unlock_date) > new Date();
                 const lockedByPrev = !unlocked && !lockedByDate;
